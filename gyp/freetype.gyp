@@ -33,7 +33,7 @@
           }, { # (not skia_freetype_static)
             # dynamic linking depends on the OS:
             'conditions': [
-              [ 'skia_os in ["linux", "freebsd", "openbsd", "solaris", "chromeos"]',
+              [ 'skia_os in ["rpi", "linux", "freebsd", "openbsd", "solaris", "chromeos"]',
                 {
                   'direct_dependent_settings': {
                     'include_dirs' : [

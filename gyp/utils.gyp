@@ -65,7 +65,7 @@
             '../src/utils/SkThreadUtils_pthread_mach.cpp',
           ],
         }],
-        [ 'skia_os in ["linux", "freebsd", "openbsd", "solaris", "chromeos"]', {
+        [ 'skia_os in ["linux", "freebsd", "openbsd", "solaris", "chromeos", "rpi"]', {
           'sources!': [
             '../src/utils/SkThreadUtils_pthread_other.cpp',
           ],

@@ -115,7 +115,7 @@
             '../src/ports/SkImageDecoder_CG.cpp',
           ],
         }],
-        [ 'skia_os in ["linux", "freebsd", "openbsd", "solaris"]', {
+        [ 'skia_os in ["rpi", "linux", "freebsd", "openbsd", "solaris"]', {
           'export_dependent_settings': [
             'libpng.gyp:libpng',
           ],

@@ -123,13 +123,13 @@
             'GR_CHROME_UTILS=1',
           ],
         }],
-        [ 'skia_os == "linux" or skia_os == "chromeos"', {
+        [ 'skia_os == "linux" or skia_os == "chromeos" or skia_os == "rpi"', {
           'sources!': [
             '../src/gpu/gl/GrGLDefaultInterface_none.cpp',
             '../src/gpu/gl/GrGLCreateNativeInterface_none.cpp',
           ],
         }],
-        [ '(skia_os == "linux" or skia_os == "chromeos") and skia_egl == 1', {
+        [ '(skia_os == "linux" or skia_os == "chromeos" or skia_os == "rpi") and skia_egl == 1', {
           'link_settings': {
             'libraries': [
               '-lEGL',

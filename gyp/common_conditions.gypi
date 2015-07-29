@@ -209,7 +209,7 @@
     ],
 
     # The following section is common to linux + derivatives and android
-    [ 'skia_os in ["linux", "freebsd", "openbsd", "solaris", "chromeos", "android"]',
+    [ 'skia_os in ["rpi", "linux", "freebsd", "openbsd", "solaris", "chromeos", "android"]',
       {
         'cflags': [
           '-g',
@@ -232,6 +232,16 @@
         ],
         'conditions': [
           [ 'skia_fast', { 'cflags': [ '<@(skia_fast_flags)' ] }],
+          [ 'skia_os == "rpi"', {
+                'cflags': [
+                  '-I/opt/vc/include',
+                  '-I/opt/vc/include/interface/vcos/pthreads',
+                  '-I/opt/vc/include/interface/vmcs_host/linux',
+                ],
+                'ldflags': [
+                  '-L/opt/vc/lib',
+                ],
+          }],
           [ 'skia_os != "chromeos"', {
             'conditions': [
               [ 'skia_arch_type == "x86_64" and not skia_android_framework', {
@@ -288,7 +298,7 @@
                   'SK_ARM_HAS_OPTIONAL_NEON',
                 ],
               }],
-              [ 'skia_os != "chromeos" and skia_os != "linux"', {
+              [ 'skia_os != "chromeos" and skia_os != "linux" and skia_os != "rpi"', {
                 'cflags': [
                   '-mfloat-abi=softfp',
                 ],
@@ -409,7 +419,14 @@
       ],
     }],
 
-    [ 'skia_os in ["linux", "freebsd", "openbsd", "solaris", "chromeos"]',
+    [ 'skia_os in ["rpi"]',
+      {
+        'defines': [
+          'SK_BUILD_FOR_RPI',
+        ],
+    }],
+
+    [ 'skia_os in ["rpi", "linux", "freebsd", "openbsd", "solaris", "chromeos"]',
       {
         'defines': [
           'SK_SAMPLES_FOR_X',

@@ -89,6 +89,17 @@
         }, {
           'os_posix%': 1,
         }],
+        [ 'skia_os == "rpi"', {
+          'skia_egl%': 1,
+          'skia_arch_type%': 'arm',
+          'arm_version%': 7,
+          'arm_neon%': 1,
+          'armv7%': 1,
+          'arm_neon%': 1,
+          'skia_warnings_as_errors%': 0,
+          'skia_freetype_static%': 1,
+        }, {
+        }],
         [ 'skia_os == "android"', {
           'skia_static_initializers%': 0,
           'skia_egl%': 1,

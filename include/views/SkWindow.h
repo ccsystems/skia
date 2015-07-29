@@ -129,6 +129,8 @@ private:
     #include "SkOSWindow_Win.h"
 #elif defined(SK_BUILD_FOR_ANDROID)
     #include "SkOSWindow_Android.h"
+#elif defined(SK_BUILD_FOR_RPI)
+  #include "SkOSWindow_RPI.h"
 #elif defined(SK_BUILD_FOR_UNIX)
   #include "SkOSWindow_Unix.h"
 #elif defined(SK_BUILD_FOR_SDL)

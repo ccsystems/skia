@@ -25,7 +25,7 @@
     'variables': {
       'conditions': [
         [ 'skia_os != OS and not ((skia_os == "ios" and OS == "mac") or \
-                                  (skia_os == "chromeos" and OS == "linux"))', {
+                                  (skia_os == "chromeos" and OS == "linux")) and not skia_os == "rpi"', {
           'error': '<!(Cannot build with skia_os=<(skia_os) on OS=<(OS))',
         }],
         [ 'skia_mesa and skia_os not in ["mac", "linux"]', {

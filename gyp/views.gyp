@@ -78,6 +78,10 @@
         '../src/views/unix/keysym2ucs.c',
         '../src/views/unix/skia_unix.cpp',
 
+        # RPI
+        '../src/views/rpi/SkOSWindow_RPI.cpp',
+        '../src/views/rpi/skia_rpi.cpp',
+
         # Windows
         '../src/views/win/SkOSWindow_win.cpp',
         '../src/views/win/skia_win.cpp',
@@ -111,6 +115,20 @@
           '../src/views/mac/SkNSView.mm',
           '../src/views/mac/SkOSWindow_Mac.mm',
           '../src/views/mac/skia_mac.mm',
+          ],
+        }],
+        [ 'skia_os in ["rpi"]', {
+          'link_settings': {
+            'libraries': [
+              '-lbcm_host',
+              '-lvcos',
+              '-lvchiq_arm',
+            ],
+          },
+        },{
+          'sources!': [
+            '../src/views/unix/SkOSWindow_RPI.cpp',
+            '../src/views/unix/skia_rpi.cpp',
           ],
         }],
         [ 'skia_os in ["linux", "freebsd", "openbsd", "solaris", "chromeos"]', {

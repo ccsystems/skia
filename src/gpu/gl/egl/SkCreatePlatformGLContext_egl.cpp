@@ -214,6 +214,58 @@ void EGLGLContext::onPlatformSwapBuffers() const {
 }
 
 GrGLFuncPtr EGLGLContext::onPlatformGetProcAddress(const char* procName) const {
+#ifdef SK_BUILD_FOR_RPI
+    if(strcmp(procName, "glGetString") == 0) return (GrGLFuncPtr)glGetString;
+    if(strcmp(procName, "glGetIntegerv") == 0) return (GrGLFuncPtr)glGetIntegerv;
+    if(strcmp(procName, "glActiveTexture") == 0) return (GrGLFuncPtr)glActiveTexture;
+    if(strcmp(procName, "glAttachShader") == 0) return (GrGLFuncPtr)glAttachShader;
+    if(strcmp(procName, "glBindAttribLocation") == 0) return (GrGLFuncPtr)glBindAttribLocation;
+    if(strcmp(procName, "glBindBuffer") == 0) return (GrGLFuncPtr)glBindBuffer;
+    if(strcmp(procName, "glBindTexture") == 0) return (GrGLFuncPtr)glBindTexture;
+    if(strcmp(procName, "glBlendColor") == 0) return (GrGLFuncPtr)glBlendColor;
+    if(strcmp(procName, "glBlendEquation") == 0) return (GrGLFuncPtr)glBlendEquation;
+    if(strcmp(procName, "glBlendFunc") == 0) return (GrGLFuncPtr)glBlendFunc;
+    if(strcmp(procName, "glBufferData") == 0) return (GrGLFuncPtr)glBufferData;
+    if(strcmp(procName, "glBufferSubData") == 0) return (GrGLFuncPtr)glBufferSubData;
+    if(strcmp(procName, "glClear") == 0) return (GrGLFuncPtr)glClear;
+    if(strcmp(procName, "glClearColor") == 0) return (GrGLFuncPtr)glClearColor;
+    if(strcmp(procName, "glClearStencil") == 0) return (GrGLFuncPtr)glClearStencil;
+    if(strcmp(procName, "glColorMask") == 0) return (GrGLFuncPtr)glColorMask;
+    if(strcmp(procName, "glCompileShader") == 0) return (GrGLFuncPtr)glCompileShader;
+    if(strcmp(procName, "glCompressedTexImage2D") == 0) return (GrGLFuncPtr)glCompressedTexImage2D;
+    if(strcmp(procName, "glCompressedTexSubImage2D") == 0) return (GrGLFuncPtr)glCompressedTexSubImage2D;
+    if(strcmp(procName, "glCopyTexSubImage2D") == 0) return (GrGLFuncPtr)glCopyTexSubImage2D;
+    if(strcmp(procName, "glCreateProgram") == 0) return (GrGLFuncPtr)glCreateProgram;
+    if(strcmp(procName, "glCreateShader") == 0) return (GrGLFuncPtr)glCreateShader;
+    if(strcmp(procName, "glBindFramebuffer") == 0) return (GrGLFuncPtr)glBindFramebuffer;
+    if(strcmp(procName, "glBindRenderbuffer") == 0) return (GrGLFuncPtr)glBindRenderbuffer;
+    if(strcmp(procName, "glCheckFramebufferStatus") == 0) return (GrGLFuncPtr)glCheckFramebufferStatus;
+    if(strcmp(procName, "glDeleteFramebuffers") == 0) return (GrGLFuncPtr)glDeleteFramebuffers;
+    if(strcmp(procName, "glDeleteRenderbuffers") == 0) return (GrGLFuncPtr)glDeleteRenderbuffers;
+    if(strcmp(procName, "glFramebufferRenderbuffer") == 0) return (GrGLFuncPtr)glFramebufferRenderbuffer;
+    if(strcmp(procName, "glFramebufferTexture2D") == 0) return (GrGLFuncPtr)glFramebufferTexture2D;
+    if(strcmp(procName, "glGenFramebuffers") == 0) return (GrGLFuncPtr)glGenFramebuffers;
+    if(strcmp(procName, "glGenRenderbuffers") == 0) return (GrGLFuncPtr)glGenRenderbuffers;
+    if(strcmp(procName, "glGetFramebufferAttachmentParameteriv") == 0) return (GrGLFuncPtr)glGetFramebufferAttachmentParameteriv;
+    if(strcmp(procName, "glGetRenderbufferParameteriv") == 0) return (GrGLFuncPtr)glGetRenderbufferParameteriv;
+    if(strcmp(procName, "glGetUniformLocation") == 0) return (GrGLFuncPtr)glGetUniformLocation;
+    if(strcmp(procName, "glIsTexture") == 0) return (GrGLFuncPtr)glIsTexture;
+    if(strcmp(procName, "glLineWidth") == 0) return (GrGLFuncPtr)glLineWidth;
+    if(strcmp(procName, "glLinkProgram") == 0) return (GrGLFuncPtr)glLinkProgram;
+    if(strcmp(procName, "glPixelStorei") == 0) return (GrGLFuncPtr)glPixelStorei;
+    if(strcmp(procName, "glReadPixels") == 0) return (GrGLFuncPtr)glReadPixels;
+    if(strcmp(procName, "glRenderbufferStorage") == 0) return (GrGLFuncPtr)glRenderbufferStorage;
+    if(strcmp(procName, "glScissor") == 0) return (GrGLFuncPtr)glScissor;
+    if(strcmp(procName, "glShaderSource") == 0) return (GrGLFuncPtr)glShaderSource;
+    if(strcmp(procName, "glStencilFunc") == 0) return (GrGLFuncPtr)glStencilFunc;
+    if(strcmp(procName, "glStencilFuncSeparate") == 0) return (GrGLFuncPtr)glStencilFuncSeparate;
+    if(strcmp(procName, "glStencilMask") == 0) return (GrGLFuncPtr)glStencilMask;
+    if(strcmp(procName, "glStencilMaskSeparate") == 0) return (GrGLFuncPtr)glStencilMaskSeparate;
+    if(strcmp(procName, "glStencilOp") == 0) return (GrGLFuncPtr)glStencilOp;
+    if(strcmp(procName, "glStencilOpSeparate") == 0) return (GrGLFuncPtr)glStencilOpSeparate;
+    if(strcmp(procName, "glTexImage2D") == 0) return (GrGLFuncPtr)glTexImage2D;
+    if(strcmp(procName, "glTexParameteri") == 0) return (GrGLFuncPtr)glTexParameteri;
+#endif
     return eglGetProcAddress(procName);
 }
 
