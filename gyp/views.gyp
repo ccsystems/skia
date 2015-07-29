@@ -123,6 +123,7 @@
               '-lbcm_host',
               '-lvcos',
               '-lvchiq_arm',
+              '-lSDL2',
             ],
           },
         },{

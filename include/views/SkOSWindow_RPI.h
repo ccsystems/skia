@@ -9,6 +9,7 @@
 #define SkOSWindow_RPI_DEFINED
 
 #include "SkWindow.h"
+#include <SDL2/SDL.h>
 
 class SkEvent;
 
@@ -30,9 +31,15 @@ public:
 	void detach();
 	void present();
 
+protected:
+    virtual void onHandleInval(const SkIRect&);
+
 private:
     void initWindow(int newMSAASampleCount, AttachmentInfo* info);
+    void processEvent(SDL_Event ev);
 
+    SDL_Window *window;
+    SDL_GLContext glcontext;
     typedef SkWindow INHERITED;
 };
 

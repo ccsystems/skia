@@ -9,11 +9,10 @@
 #include "SkEvent.h"
 #include "SkWindow.h"
 
-#include <bcm_host.h>
-#include <interface/vmcs_host/vc_dispmanx.h>
+#include <SDL2/SDL.h>
 
 int main(int argc, char** argv){
-	bcm_host_init();
+    SDL_Init(SDL_INIT_VIDEO);
     SkOSWindow* window = create_sk_window(NULL, argc, argv);
 
     // drain any events that occurred before |window| was assigned.
@@ -26,5 +25,6 @@ int main(int argc, char** argv){
 
     delete window;
     application_term();
+    SDL_Quit();
     return 0;
 }
