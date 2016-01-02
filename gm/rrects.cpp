@@ -57,13 +57,13 @@ protected:
     SkISize onISize() override { return SkISize::Make(kImageWidth, kImageHeight); }
 
     void onDraw(SkCanvas* canvas) override {
-        GrContext* context = NULL;
+        GrContext* context = nullptr;
 #if SK_SUPPORT_GPU
         GrRenderTarget* rt = canvas->internal_private_accessTopLayerRenderTarget();
-        context = rt ? rt->getContext() : NULL;
+        context = rt ? rt->getContext() : nullptr;
 #endif
-        if (kEffect_Type == fType && NULL == context) {
-            this->drawGpuOnlyMessage(canvas);
+        if (kEffect_Type == fType && nullptr == context) {
+            skiagm::GM::DrawGpuOnlyMessage(canvas);
             return;
         }
 
@@ -101,12 +101,14 @@ protected:
                     if (kEffect_Type == fType) {
 #if SK_SUPPORT_GPU
                         GrTestTarget tt;
-                        context->getTestTarget(&tt);
-                        if (NULL == tt.target()) {
+                        context->getTestTarget(&tt, rt);
+                        if (nullptr == tt.target()) {
                             SkDEBUGFAIL("Couldn't get Gr test target.");
                             return;
                         }
                         GrPipelineBuilder pipelineBuilder;
+                        pipelineBuilder.setXPFactory(
+                            GrPorterDuffXPFactory::Create(SkXfermode::kSrc_Mode))->unref();
 
                         SkRRect rrect = fRRects[curRRect];
                         rrect.offset(SkIntToScalar(x), SkIntToScalar(y));
@@ -114,16 +116,16 @@ protected:
                         SkAutoTUnref<GrFragmentProcessor> fp(GrRRectEffect::Create(edgeType,
                                                                                    rrect));
                         if (fp) {
-                            pipelineBuilder.addCoverageProcessor(fp);
+                            pipelineBuilder.addCoverageFragmentProcessor(fp);
                             pipelineBuilder.setRenderTarget(rt);
 
                             SkRect bounds = rrect.getBounds();
                             bounds.outset(2.f, 2.f);
 
-                            tt.target()->drawSimpleRect(pipelineBuilder,
-                                                        0xff000000,
-                                                        SkMatrix::I(),
-                                                        bounds);
+                            tt.target()->drawNonAARect(pipelineBuilder,
+                                                       0xff000000,
+                                                       SkMatrix::I(),
+                                                       bounds);
                         } else {
                             drew = false;
                         }

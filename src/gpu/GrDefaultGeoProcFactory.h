@@ -64,14 +64,6 @@ namespace GrDefaultGeoProcFactory {
         GrColor fCoverage;
     };
 
-    enum GPType {
-        kPosition_GPType = 0x0, // we ALWAYS have position
-        kColor_GPType = 0x01,
-        kLocalCoord_GPType = 0x02,
-        kCoverage_GPType= 0x04,
-        kLastGPType = kCoverage_GPType
-    };
-
     struct Color {
         enum Type {
             kNone_Type,
@@ -113,12 +105,13 @@ namespace GrDefaultGeoProcFactory {
             kUnused_Type,
             kUsePosition_Type,
             kHasExplicit_Type,
+            kHasTransformed_Type,
         };
-        LocalCoords(Type type) : fType(type), fMatrix(NULL) {}
+        LocalCoords(Type type) : fType(type), fMatrix(nullptr) {}
         LocalCoords(Type type, const SkMatrix* matrix) : fType(type), fMatrix(matrix) {
             SkASSERT(kUnused_Type != type);
         }
-        bool hasLocalMatrix() const { return NULL != fMatrix; }
+        bool hasLocalMatrix() const { return nullptr != fMatrix; }
 
         Type fType;
         const SkMatrix* fMatrix;
@@ -127,7 +120,7 @@ namespace GrDefaultGeoProcFactory {
     const GrGeometryProcessor* Create(const Color&,
                                       const Coverage&,
                                       const LocalCoords&,
-                                      const SkMatrix& viewMatrix = SkMatrix::I());
+                                      const SkMatrix& viewMatrix);
 
     /*
      * Use this factory to create a GrGeometryProcessor that expects a device space vertex position
@@ -138,15 +131,6 @@ namespace GrDefaultGeoProcFactory {
                                                     const Coverage&,
                                                     const LocalCoords&,
                                                     const SkMatrix& viewMatrix);
-
-    // TODO deprecate this
-    const GrGeometryProcessor* Create(uint32_t gpTypeFlags,
-                                      GrColor,
-                                      bool localCoordsWillBeRead,
-                                      bool coverageWillBeIgnored,
-                                      const SkMatrix& viewMatrix = SkMatrix::I(),
-                                      const SkMatrix& localMatrix = SkMatrix::I(),
-                                      uint8_t coverage = 0xff);
 
     inline size_t DefaultVertexStride() { return sizeof(PositionAttr); }
 };

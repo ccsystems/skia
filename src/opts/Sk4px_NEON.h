@@ -57,6 +57,12 @@ inline Sk4px Sk4px::Wide::addNarrowHi(const Sk16h& other) const {
                              vaddhn_u16(this->fHi.fVec, o.fHi.fVec)));
 }
 
+inline Sk4px Sk4px::Wide::div255() const {
+    // Calculated as (x + (x+128)>>8 +128) >> 8.  The 'r' in each instruction provides each +128.
+    return Sk16b(vcombine_u8(vraddhn_u16(this->fLo.fVec, vrshrq_n_u16(this->fLo.fVec, 8)),
+                             vraddhn_u16(this->fHi.fVec, vrshrq_n_u16(this->fHi.fVec, 8))));
+}
+
 inline Sk4px Sk4px::alphas() const {
     auto as = vshrq_n_u32((uint32x4_t)fVec, SK_A32_SHIFT);  // ___3 ___2 ___1 ___0
     return Sk16b((uint8x16_t)vmulq_n_u32(as, 0x01010101));  // 3333 2222 1111 0000

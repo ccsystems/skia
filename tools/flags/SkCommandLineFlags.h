@@ -76,6 +76,11 @@
  *  as its value. All strings that follow the flag on the command line (until
  *  a string that begins with '-') will be entries in the array.
  *
+ *  DEFINE_extended_string(args, .., .., extendedHelpString);
+ *
+ *  creates a similar string array flag as DEFINE_string. The flag will have extended help text
+ *  (extendedHelpString) that can the user can see with '--help <args>' flag.
+ *
  *  Any flag can be referenced from another file after using the following:
  *
  *  DECLARE_x(name);
@@ -114,6 +119,10 @@ public:
      */
     class StringArray {
     public:
+        StringArray() { }
+        explicit StringArray(const SkTArray<SkString>& strings)
+            : fStrings(strings) {
+        }
         const char* operator[](int i) const {
             SkASSERT(i >= 0 && i < fStrings.count());
             return fStrings[i].c_str();
@@ -181,7 +190,7 @@ private:
 #define DEFINE_bool(name, defaultValue, helpString)                         \
 bool FLAGS_##name;                                                          \
 SK_UNUSED static bool unused_##name = SkFlagInfo::CreateBoolFlag(TO_STRING(name),     \
-                                                                 NULL,                \
+                                                                 nullptr,                \
                                                                  &FLAGS_##name,       \
                                                                  defaultValue,        \
                                                                  helpString)
@@ -201,10 +210,18 @@ SK_UNUSED static bool unused_##name = SkFlagInfo::CreateBoolFlag(TO_STRING(name)
 #define DEFINE_string(name, defaultValue, helpString)                       \
 SkCommandLineFlags::StringArray FLAGS_##name;                               \
 SK_UNUSED static bool unused_##name = SkFlagInfo::CreateStringFlag(TO_STRING(name),   \
-                                                                   NULL,              \
+                                                                   nullptr,              \
                                                                    &FLAGS_##name,     \
                                                                    defaultValue,      \
-                                                                   helpString)
+                                                                   helpString, nullptr)
+#define DEFINE_extended_string(name, defaultValue, helpString, extendedHelpString) \
+SkCommandLineFlags::StringArray FLAGS_##name;                                      \
+SK_UNUSED static bool unused_##name = SkFlagInfo::CreateStringFlag(TO_STRING(name),   \
+                                                                   nullptr, \
+                                                                   &FLAGS_##name, \
+                                                                   defaultValue, \
+                                                                   helpString, \
+                                                                   extendedHelpString)
 
 // string2 allows specifying a short name. There is an assert that shortName
 // is only 1 character.
@@ -214,13 +231,24 @@ SK_UNUSED static bool unused_##name = SkFlagInfo::CreateStringFlag(TO_STRING(nam
                                                                    TO_STRING(shortName),  \
                                                                    &FLAGS_##name,         \
                                                                    defaultValue,          \
-                                                                   helpString)
+                                                                   helpString, nullptr)
 
 #define DECLARE_string(name) extern SkCommandLineFlags::StringArray FLAGS_##name;
+
+
+
 
 #define DEFINE_int32(name, defaultValue, helpString)                        \
 int32_t FLAGS_##name;                                                       \
 SK_UNUSED static bool unused_##name = SkFlagInfo::CreateIntFlag(TO_STRING(name),      \
+                                                                &FLAGS_##name,        \
+                                                                defaultValue,         \
+                                                                helpString)
+
+#define DEFINE_int32_2(name, shortName, defaultValue, helpString)                     \
+int32_t FLAGS_##name;                                                                 \
+SK_UNUSED static bool unused_##name = SkFlagInfo::CreateIntFlag(TO_STRING(name),      \
+                                                                TO_STRING(shortName), \
                                                                 &FLAGS_##name,        \
                                                                 defaultValue,         \
                                                                 helpString)
@@ -262,7 +290,7 @@ public:
      */
     static bool CreateBoolFlag(const char* name, const char* shortName, bool* pBool,
                                bool defaultValue, const char* helpString) {
-        SkFlagInfo* info = SkNEW_ARGS(SkFlagInfo, (name, shortName, kBool_FlagType, helpString));
+        SkFlagInfo* info = new SkFlagInfo(name, shortName, kBool_FlagType, helpString, nullptr);
         info->fBoolValue = pBool;
         *info->fBoolValue = info->fDefaultBool = defaultValue;
         return true;
@@ -276,14 +304,23 @@ public:
      */
     static bool CreateStringFlag(const char* name, const char* shortName,
                                  SkCommandLineFlags::StringArray* pStrings,
-                                 const char* defaultValue, const char* helpString);
+                                 const char* defaultValue, const char* helpString,
+                                 const char* extendedHelpString);
 
     /**
      *  See comments for CreateBoolFlag.
      */
     static bool CreateIntFlag(const char* name, int32_t* pInt,
                               int32_t defaultValue, const char* helpString) {
-        SkFlagInfo* info = SkNEW_ARGS(SkFlagInfo, (name, NULL, kInt_FlagType, helpString));
+        SkFlagInfo* info = new SkFlagInfo(name, nullptr, kInt_FlagType, helpString, nullptr);
+        info->fIntValue = pInt;
+        *info->fIntValue = info->fDefaultInt = defaultValue;
+        return true;
+    }
+
+    static bool CreateIntFlag(const char* name, const char* shortName, int32_t* pInt,
+                              int32_t defaultValue, const char* helpString) {
+        SkFlagInfo* info = new SkFlagInfo(name, shortName, kInt_FlagType, helpString, nullptr);
         info->fIntValue = pInt;
         *info->fIntValue = info->fDefaultInt = defaultValue;
         return true;
@@ -294,7 +331,7 @@ public:
      */
     static bool CreateDoubleFlag(const char* name, double* pDouble,
                                  double defaultValue, const char* helpString) {
-        SkFlagInfo* info = SkNEW_ARGS(SkFlagInfo, (name, NULL, kDouble_FlagType, helpString));
+        SkFlagInfo* info = new SkFlagInfo(name, nullptr, kDouble_FlagType, helpString, nullptr);
         info->fDoubleValue = pDouble;
         *info->fDoubleValue = info->fDefaultDouble = defaultValue;
         return true;
@@ -364,6 +401,7 @@ public:
     const SkString& shortName() const { return fShortName; }
 
     const SkString& help() const { return fHelpString; }
+    const SkString& extendedHelp() const { return fExtendedHelpString; }
 
     SkString defaultValue() const {
         SkString result;
@@ -402,22 +440,24 @@ public:
     }
 
 private:
-    SkFlagInfo(const char* name, const char* shortName, FlagTypes type, const char* helpString)
+    SkFlagInfo(const char* name, const char* shortName, FlagTypes type, const char* helpString,
+               const char* extendedHelpString)
         : fName(name)
         , fShortName(shortName)
         , fFlagType(type)
         , fHelpString(helpString)
-        , fBoolValue(NULL)
+        , fExtendedHelpString(extendedHelpString)
+        , fBoolValue(nullptr)
         , fDefaultBool(false)
-        , fIntValue(NULL)
+        , fIntValue(nullptr)
         , fDefaultInt(0)
-        , fDoubleValue(NULL)
+        , fDoubleValue(nullptr)
         , fDefaultDouble(0)
-        , fStrings(NULL) {
+        , fStrings(nullptr) {
         fNext = SkCommandLineFlags::gHead;
         SkCommandLineFlags::gHead = this;
         SkASSERT(name && strlen(name) > 1);
-        SkASSERT(NULL == shortName || 1 == strlen(shortName));
+        SkASSERT(nullptr == shortName || 1 == strlen(shortName));
     }
 
     /**
@@ -434,6 +474,7 @@ private:
     SkString             fShortName;
     FlagTypes            fFlagType;
     SkString             fHelpString;
+    SkString             fExtendedHelpString;
     bool*                fBoolValue;
     bool                 fDefaultBool;
     int32_t*             fIntValue;

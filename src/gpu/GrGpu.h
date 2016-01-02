@@ -11,7 +11,7 @@
 #include "GrPipelineBuilder.h"
 #include "GrProgramDesc.h"
 #include "GrStencil.h"
-#include "GrTraceMarker.h"
+#include "GrTextureParamsAdjuster.h"
 #include "GrXferProcessor.h"
 #include "SkPath.h"
 
@@ -31,6 +31,7 @@ class GrRenderTarget;
 class GrStencilAttachment;
 class GrSurface;
 class GrTexture;
+class GrTransferBuffer;
 class GrVertexBuffer;
 class GrVertices;
 
@@ -38,7 +39,7 @@ class GrGpu : public SkRefCnt {
 public:
     /**
      * Create an instance of GrGpu that matches the specified backend. If the requested backend is
-     * not supported (at compile-time or run-time) this returns NULL. The context will not be
+     * not supported (at compile-time or run-time) this returns nullptr. The context will not be
      * fully constructed and should not be used by GrGpu until after this function returns.
      */
     static GrGpu* Create(GrBackend, GrBackendContext, const GrContextOptions&, GrContext* context);
@@ -83,13 +84,13 @@ public:
      * @param srcData     texel data to load texture. Begins with full-size
      *                    palette data for paletted textures. For compressed
      *                    formats it contains the compressed pixel data. Otherwise,
-     *                    it contains width*height texels. If NULL texture data
+     *                    it contains width*height texels. If nullptr texture data
      *                    is uninitialized.
      * @param rowBytes    the number of bytes between consecutive rows. Zero
      *                    means rows are tightly packed. This field is ignored
      *                    for compressed formats.
      *
-     * @return    The texture object if successful, otherwise NULL.
+     * @return    The texture object if successful, otherwise nullptr.
      */
     GrTexture* createTexture(const GrSurfaceDesc& desc, bool budgeted,
                              const void* srcData, size_t rowBytes);
@@ -112,7 +113,7 @@ public:
      *                by either GrVertexBuffer::map() or
      *                GrVertexBuffer::updateData().
      *
-     * @return    The vertex buffer if successful, otherwise NULL.
+     * @return    The vertex buffer if successful, otherwise nullptr.
      */
     GrVertexBuffer* createVertexBuffer(size_t size, bool dynamic);
 
@@ -124,10 +125,26 @@ public:
      *                by either GrIndexBuffer::map() or
      *                GrIndexBuffer::updateData().
      *
-     * @return The index buffer if successful, otherwise NULL.
+     * @return The index buffer if successful, otherwise nullptr.
      */
     GrIndexBuffer* createIndexBuffer(size_t size, bool dynamic);
 
+    enum TransferType {
+        kCpuToGpu_TransferType,
+        kGpuToCpu_TransferType
+    };
+
+    /**
+     * Creates a transfer buffer.
+     *
+     * @param size      size in bytes of the index buffer
+     * @param toGpu     true if used to transfer from the cpu to the gpu
+     *                  otherwise to be used to transfer from the gpu to the cpu
+     *
+     * @return The transfer buffer if successful, otherwise nullptr.
+     */
+    GrTransferBuffer* createTransferBuffer(size_t size, TransferType type);
+    
     /**
      * Resolves MSAA.
      */
@@ -210,8 +227,7 @@ public:
     /**
      * Reads a rectangle of pixels from a render target.
      *
-     * @param renderTarget  the render target to read from. NULL means the
-     *                      current render target.
+     * @param surface       The surface to read from
      * @param left          left edge of the rectangle to read (inclusive)
      * @param top           top edge of the rectangle to read (inclusive)
      * @param width         width of rectangle to read in pixels.
@@ -227,13 +243,14 @@ public:
      *              because of a unsupported pixel config or because no render
      *              target is currently set.
      */
-    bool readPixels(GrRenderTarget* renderTarget,
+    bool readPixels(GrSurface* surface,
                     int left, int top, int width, int height,
                     GrPixelConfig config, void* buffer, size_t rowBytes);
 
     /**
-     * Updates the pixels in a rectangle of a texture.
+     * Updates the pixels in a rectangle of a surface.
      *
+     * @param surface       The surface to write to.
      * @param left          left edge of the rectangle to write (inclusive)
      * @param top           top edge of the rectangle to write (inclusive)
      * @param width         width of rectangle to write in pixels.
@@ -243,26 +260,24 @@ public:
      * @param rowBytes      number of bytes between consecutive rows. Zero
      *                      means rows are tightly packed.
      */
-    bool writeTexturePixels(GrTexture* texture,
-                            int left, int top, int width, int height,
-                            GrPixelConfig config, const void* buffer,
-                            size_t rowBytes);
+    bool writePixels(GrSurface* surface,
+                     int left, int top, int width, int height,
+                     GrPixelConfig config, const void* buffer,
+                     size_t rowBytes);
 
     /**
-     * Clear the passed in render target. Ignores the draw state and clip. Clears the whole thing if
-     * rect is NULL, otherwise just the rect. If canIgnoreRect is set then the entire render target
-     * can be optionally cleared.
+     * Clear the passed in render target. Ignores the draw state and clip.
      */
-    void clear(const SkIRect* rect, GrColor color, bool canIgnoreRect,GrRenderTarget* renderTarget);
+    void clear(const SkIRect& rect, GrColor color, GrRenderTarget* renderTarget);
 
 
     void clearStencilClip(const SkIRect& rect, bool insideClip, GrRenderTarget* renderTarget);
 
     /**
-     * Discards the contents render target. NULL indicates that the current render target should
+     * Discards the contents render target. nullptr indicates that the current render target should
      * be discarded.
      **/
-    virtual void discard(GrRenderTarget* = NULL) = 0;
+    virtual void discard(GrRenderTarget* = nullptr) = 0;
 
     /**
      * This is can be called before allocating a texture to be a dst for copySurface. It will
@@ -289,36 +304,29 @@ public:
 
     virtual void buildProgramDesc(GrProgramDesc*,
                                   const GrPrimitiveProcessor&,
-                                  const GrPipeline&,
-                                  const GrBatchTracker&) const = 0;
+                                  const GrPipeline&) const = 0;
 
     // Called to perform a surface to surface copy. Fallbacks to issuing a draw from the src to dst
     // take place at the GrDrawTarget level and this function implement faster copy paths. The rect
     // and point are pre-clipped. The src rect and implied dst rect are guaranteed to be within the
     // src/dst bounds and non-empty.
-    virtual bool copySurface(GrSurface* dst,
-                             GrSurface* src,
-                             const SkIRect& srcRect,
-                             const SkIPoint& dstPoint) = 0;
-
-    // Called before certain draws in order to guarantee coherent results from dst reads.
-    virtual void xferBarrier(GrRenderTarget*, GrXferBarrierType) = 0;
+    bool copySurface(GrSurface* dst,
+                     GrSurface* src,
+                     const SkIRect& srcRect,
+                     const SkIPoint& dstPoint);
 
     struct DrawArgs {
         DrawArgs(const GrPrimitiveProcessor* primProc,
                  const GrPipeline* pipeline,
-                 const GrProgramDesc* desc,
-                 const GrBatchTracker* batchTracker)
+                 const GrProgramDesc* desc)
             : fPrimitiveProcessor(primProc)
             , fPipeline(pipeline)
-            , fDesc(desc)
-            , fBatchTracker(batchTracker) {
-            SkASSERT(primProc && pipeline && desc && batchTracker);
+            , fDesc(desc) {
+            SkASSERT(primProc && pipeline && desc);
         }
         const GrPrimitiveProcessor* fPrimitiveProcessor;
         const GrPipeline* fPipeline;
         const GrProgramDesc* fDesc;
-        const GrBatchTracker* fBatchTracker;
     };
 
     void draw(const DrawArgs&, const GrVertices&);
@@ -337,6 +345,7 @@ public:
             fTextureCreates = 0;
             fTextureUploads = 0;
             fStencilAttachmentCreates = 0;
+            fNumDraws = 0;
         }
 
         int renderTargetBinds() const { return fRenderTargetBinds; }
@@ -348,7 +357,9 @@ public:
         int textureUploads() const { return fTextureUploads; }
         void incTextureUploads() { fTextureUploads++; }
         void incStencilAttachmentCreates() { fStencilAttachmentCreates++; }
+        void incNumDraws() { fNumDraws++; }
         void dump(SkString*);
+        void dumpKeyValuePairs(SkTArray<SkString>* keys, SkTArray<double>* values);
 
     private:
         int fRenderTargetBinds;
@@ -356,49 +367,57 @@ public:
         int fTextureCreates;
         int fTextureUploads;
         int fStencilAttachmentCreates;
+        int fNumDraws;
 #else
-        void dump(SkString*) {};
+        void dump(SkString*) {}
+        void dumpKeyValuePairs(SkTArray<SkString>*, SkTArray<double>*) {}
         void incRenderTargetBinds() {}
         void incShaderCompilations() {}
         void incTextureCreates() {}
         void incTextureUploads() {}
         void incStencilAttachmentCreates() {}
+        void incNumDraws() {}
 #endif
     };
 
     Stats* stats() { return &fStats; }
 
-    /**
-     * Called at start and end of gpu trace marking
-     * GR_CREATE_GPU_TRACE_MARKER(marker_str, target) will automatically call these at the start
-     * and end of a code block respectively
-     */
-    void addGpuTraceMarker(const GrGpuTraceMarker* marker);
-    void removeGpuTraceMarker(const GrGpuTraceMarker* marker);
-
-    /**
-     * Takes the current active set of markers and stores them for later use. Any current marker
-     * in the active set is removed from the active set and the targets remove function is called.
-     * These functions do not work as a stack so you cannot call save a second time before calling
-     * restore. Also, it is assumed that when restore is called the current active set of markers
-     * is empty. When the stored markers are added back into the active set, the targets add marker
-     * is called.
-     */
-    void saveActiveTraceMarkers();
-    void restoreActiveTraceMarkers();
-
-    // creation and deletion of raw texture for testing
-    // only to be used in GPU-specific tests
+    /** Creates a texture directly in the backend API without wrapping it in a GrTexture. This is
+        only to be used for testing (particularly for testing the methods that import an externally
+        created texture into Skia. Must be matched with a call to deleteTestingOnlyTexture(). */
     virtual GrBackendObject createTestingOnlyBackendTexture(void* pixels, int w, int h,
                                                             GrPixelConfig config) const = 0;
-    virtual bool isTestingOnlyBackendTexture(GrBackendObject id) const = 0;
-    virtual void deleteTestingOnlyBackendTexture(GrBackendObject id) const = 0;
+    /** Check a handle represents an actual texture in the backend API that has not been freed. */
+    virtual bool isTestingOnlyBackendTexture(GrBackendObject) const = 0;
+    /** If ownership of the backend texture has been transferred pass true for abandonTexture. This
+        will do any necessary cleanup of the handle without freeing the texture in the backend
+        API. */
+    virtual void deleteTestingOnlyBackendTexture(GrBackendObject,
+                                                 bool abandonTexture = false) const = 0;
 
-    // Given a rt, find or create a stencil buffer and attach it
-    bool attachStencilAttachmentToRenderTarget(GrRenderTarget* target);
+    // width and height may be larger than rt (if underlying API allows it).
+    // Returns nullptr if compatible sb could not be created, otherwise the caller owns the ref on
+    // the GrStencilAttachment.
+    virtual GrStencilAttachment* createStencilAttachmentForRenderTarget(const GrRenderTarget*,
+                                                                        int width,
+                                                                        int height) = 0;
+    // clears target's entire stencil buffer to 0
+    virtual void clearStencil(GrRenderTarget* target) = 0;
+
+    // draws an outline rectangle for debugging/visualization purposes.
+    virtual void drawDebugWireRect(GrRenderTarget*, const SkIRect&, GrColor) = 0;
+
+    // Determines whether a copy of a texture must be made in order to be compatible with
+    // a given GrTextureParams. If so, the width, height and filter used for the copy are
+    // output via the CopyParams.
+    bool makeCopyForTextureParams(int width, int height, const GrTextureParams&,
+                                  GrTextureProducer::CopyParams*) const;
 
     // This is only to be used in GL-specific tests.
-    virtual const GrGLContext* glContextForTesting() const { return NULL; }
+    virtual const GrGLContext* glContextForTesting() const { return nullptr; }
+
+    // This is only to be used by testing code
+    virtual void resetShaderCacheForTesting() const {}
 
 protected:
     // Functions used to map clip-respecting stencil tests into normal
@@ -422,7 +441,11 @@ protected:
         *preference = SkTMax(*preference, elevation);
     }
 
-    const GrTraceMarkerSet& getActiveTraceMarkers() const { return fActiveTraceMarkers; }
+    void handleDirtyContext() {
+        if (fResetBits) {
+            this->resetContext();
+        }
+    }
 
     Stats                                   fStats;
     SkAutoTDelete<GrPathRendering>          fPathRendering;
@@ -433,6 +456,9 @@ private:
     // called when the 3D context state is unknown. Subclass should emit any
     // assumed 3D context state and dirty any state cache.
     virtual void onResetContext(uint32_t resetBits) = 0;
+
+    // Called before certain draws in order to guarantee coherent results from dst reads.
+    virtual void xferBarrier(GrRenderTarget*, GrXferBarrierType) = 0;
 
     // overridden by backend-specific derived class to create objects.
     // Texture size and sample size will have already been validated in base class before
@@ -448,10 +474,10 @@ private:
                                                       GrWrapOwnership) = 0;
     virtual GrVertexBuffer* onCreateVertexBuffer(size_t size, bool dynamic) = 0;
     virtual GrIndexBuffer* onCreateIndexBuffer(size_t size, bool dynamic) = 0;
+    virtual GrTransferBuffer* onCreateTransferBuffer(size_t size, TransferType type) = 0;
 
     // overridden by backend-specific derived class to perform the clear.
-    virtual void onClear(GrRenderTarget*, const SkIRect* rect, GrColor color,
-                         bool canIgnoreRect) = 0;
+    virtual void onClear(GrRenderTarget*, const SkIRect& rect, GrColor color) = 0;
 
 
     // Overridden by backend specific classes to perform a clear of the stencil clip bits.  This is
@@ -468,34 +494,28 @@ private:
                                       GrPixelConfig srcConfig, DrawPreference*,
                                       WritePixelTempDrawInfo*) = 0;
 
-    virtual bool onReadPixels(GrRenderTarget* target,
-                              int left, int top, int width, int height,
+    // overridden by backend-specific derived class to perform the surface read
+    virtual bool onReadPixels(GrSurface*,
+                              int left, int top,
+                              int width, int height,
                               GrPixelConfig,
                               void* buffer,
                               size_t rowBytes) = 0;
 
-    // overridden by backend-specific derived class to perform the texture update
-    virtual bool onWriteTexturePixels(GrTexture* texture,
-                                      int left, int top, int width, int height,
-                                      GrPixelConfig config, const void* buffer,
-                                      size_t rowBytes) = 0;
+    // overridden by backend-specific derived class to perform the surface write
+    virtual bool onWritePixels(GrSurface*,
+                               int left, int top, int width, int height,
+                               GrPixelConfig config, const void* buffer,
+                               size_t rowBytes) = 0;
 
     // overridden by backend-specific derived class to perform the resolve
     virtual void onResolveRenderTarget(GrRenderTarget* target) = 0;
 
-    // width and height may be larger than rt (if underlying API allows it).
-    // Should attach the SB to the RT. Returns false if compatible sb could
-    // not be created.
-    virtual bool createStencilAttachmentForRenderTarget(GrRenderTarget*, int width, int height) = 0;
-
-    // attaches an existing SB to an existing RT.
-    virtual bool attachStencilAttachmentToRenderTarget(GrStencilAttachment*, GrRenderTarget*) = 0;
-
-    // clears target's entire stencil buffer to 0
-    virtual void clearStencil(GrRenderTarget* target) = 0;
-
-    virtual void didAddGpuTraceMarker() = 0;
-    virtual void didRemoveGpuTraceMarker() = 0;
+    // overridden by backend specific derived class to perform the copy surface
+    virtual bool onCopySurface(GrSurface* dst,
+                               GrSurface* src,
+                               const SkIRect& srcRect,
+                               const SkIPoint& dstPoint) = 0;
 
     void resetContext() {
         this->onResetContext(fResetBits);
@@ -503,18 +523,8 @@ private:
         ++fResetTimestamp;
     }
 
-    void handleDirtyContext() {
-        if (fResetBits) {
-            this->resetContext();
-        }
-    }
-
     ResetTimestamp                                                      fResetTimestamp;
     uint32_t                                                            fResetBits;
-    // To keep track that we always have at least as many debug marker adds as removes
-    int                                                                 fGpuTraceMarkerCount;
-    GrTraceMarkerSet                                                    fActiveTraceMarkers;
-    GrTraceMarkerSet                                                    fStoredTraceMarkers;
     // The context owns us, not vice-versa, so this ptr is not ref'ed by Gpu.
     GrContext*                                                          fContext;
 

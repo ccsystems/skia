@@ -26,9 +26,25 @@ class GrGLSLCaps;
  */
 class GrGLCaps : public GrCaps {
 public:
-    
-
     typedef GrGLStencilAttachment::Format StencilFormat;
+
+    /** Provides information about the mappiing from GrPixelConfig to GL formats. */
+    struct ConfigFormats {
+        ConfigFormats() {
+            // Inits to known bad GL enum values.
+            memset(this, 0xAB, sizeof(ConfigFormats));
+        }
+        GrGLenum fBaseInternalFormat;
+        GrGLenum fSizedInternalFormat;
+        GrGLenum fExternalFormat;
+        GrGLenum fExternalType;
+
+        // The <format> parameter to use for glTexImage and glTexSubImage.
+        // This is usually the same as fExternalFormat except for kSRGBA on some GL contexts.
+        GrGLenum fExternalFormatForTexImage;
+        // Either the base or sized internal format depending on the GL and config.
+        GrGLenum fInternalFormatTexImage;
+    };
 
     /**
      * The type of MSAA for FBOs supported. Different extensions have different
@@ -92,6 +108,14 @@ public:
         kLast_MapBufferType = kChromium_MapBufferType,
     };
 
+    enum TransferBufferType {
+        kNone_TransferBufferType,
+        kPBO_TransferBufferType,          // ARB_pixel_buffer_object
+        kChromium_TransferBufferType,     // CHROMIUM_pixel_transfer_buffer_object
+
+        kLast_TransferBufferType = kChromium_TransferBufferType,
+    };
+
     /**
      * Initializes the GrGLCaps to the set of features supported in the current
      * OpenGL context accessible via ctxInfo.
@@ -99,13 +123,59 @@ public:
     GrGLCaps(const GrContextOptions& contextOptions, const GrGLContextInfo& ctxInfo,
              const GrGLInterface* glInterface);
 
+    /** Returns conversions to various GL format parameters for a GrPixelCfonig. */
+    const ConfigFormats& configGLFormats(GrPixelConfig config) const {
+        return fConfigTable[config].fFormats;
+    }
+
+
+    /**
+    * Gets an array of legal stencil formats. These formats are not guaranteed
+    * to be supported by the driver but are legal GLenum names given the GL
+    * version and extensions supported.
+    */
+    const SkTArray<StencilFormat, true>& stencilFormats() const {
+        return fStencilFormats;
+    }
+
+    /**
+     * Has a stencil format index been found for the config (or we've found that no format works).
+     */
+    bool hasStencilFormatBeenDeterminedForConfig(GrPixelConfig config) const {
+        return fConfigTable[config].fStencilFormatIndex != ConfigInfo::kUnknown_StencilIndex;
+    }
+
+    /**
+     * Gets the stencil format index for the config. This assumes
+     * hasStencilFormatBeenDeterminedForConfig has already been checked. Returns a value < 0 if
+     * no stencil format is supported with the config. Otherwise, returned index refers to the array
+     * returned by stencilFormats().
+     */
+    int getStencilFormatIndexForConfig(GrPixelConfig config) const {
+        SkASSERT(this->hasStencilFormatBeenDeterminedForConfig(config));
+        return fConfigTable[config].fStencilFormatIndex;
+    }
+
+    /**
+     * If index is >= 0 this records an index into stencilFormats() as the best stencil format for
+     * the config. If < 0 it records that the config has no supported stencil format index.
+     */
+    void setStencilFormatIndexForConfig(GrPixelConfig config, int index) {
+        SkASSERT(!this->hasStencilFormatBeenDeterminedForConfig(config));
+        if (index < 0) {
+            fConfigTable[config].fStencilFormatIndex = ConfigInfo::kUnsupported_StencilFormatIndex;
+        } else {
+            fConfigTable[config].fStencilFormatIndex = index;
+        }
+    }
+
     /**
      * Call to note that a color config has been verified as a valid color
      * attachment. This may save future calls to glCheckFramebufferStatus
      * using isConfigVerifiedColorAttachment().
      */
     void markConfigAsValidColorAttachment(GrPixelConfig config) {
-        fVerifiedColorConfigs.markVerified(config);
+        fConfigTable[config].fFlags |= ConfigInfo::kVerifiedColorAttachment_Flag;
     }
 
     /**
@@ -113,26 +183,8 @@ public:
      * attachment.
      */
     bool isConfigVerifiedColorAttachment(GrPixelConfig config) const {
-        return fVerifiedColorConfigs.isVerified(config);
+        return SkToBool(fConfigTable[config].fFlags & ConfigInfo::kVerifiedColorAttachment_Flag);
     }
-
-    /**
-     * Call to note that a color config / stencil format pair passed
-     * FBO status check. We may skip calling glCheckFramebufferStatus for
-     * this combination in the future using
-     * isColorConfigAndStencilFormatVerified().
-     */
-    void markColorConfigAndStencilFormatAsVerified(
-                    GrPixelConfig config,
-                    const GrGLStencilAttachment::Format& format);
-
-    /**
-     * Call to check whether color config / stencil format pair has already
-     * passed FBO status check.
-     */
-    bool isColorConfigAndStencilFormatVerified(
-                    GrPixelConfig config,
-                    const GrGLStencilAttachment::Format& format) const;
 
     /**
      * Reports the type of MSAA FBO support.
@@ -163,14 +215,8 @@ public:
     /// What type of buffer mapping is supported?
     MapBufferType mapBufferType() const { return fMapBufferType; }
 
-    /**
-     * Gets an array of legal stencil formats. These formats are not guaranteed
-     * to be supported by the driver but are legal GLenum names given the GL
-     * version and extensions supported.
-     */
-    const SkTArray<StencilFormat, true>& stencilFormats() const {
-        return fStencilFormats;
-    }
+    /// What type of transfer buffer is supported?
+    TransferBufferType transferBufferType() const { return fTransferBufferType; }
 
     /// The maximum number of fragment uniform vectors (GLES has min. 16).
     int maxFragmentUniformVectors() const { return fMaxFragmentUniformVectors; }
@@ -190,9 +236,6 @@ public:
      * RGBA.
      */
     bool bgraIsInternalFormat() const { return fBGRAIsInternalFormat; }
-
-    /// GL_ARB_texture_swizzle support
-    bool textureSwizzleSupport() const { return fTextureSwizzleSupport; }
 
     /// Is there support for GL_UNPACK_ROW_LENGTH
     bool unpackRowLengthSupport() const { return fUnpackRowLengthSupport; }
@@ -218,14 +261,8 @@ public:
     /// Is GL_ARB_IMAGING supported
     bool imagingSupport() const { return fImagingSupport; }
 
-    /// Is GL_ARB_fragment_coord_conventions supported?
-    bool fragCoordConventionsSupport() const { return fFragCoordsConventionSupport; }
-
     /// Is there support for Vertex Array Objects?
     bool vertexArrayObjectSupport() const { return fVertexArrayObjectSupport; }
-
-    /// Is there support for glDraw*Instanced and glVertexAttribDivisor?
-    bool instancedDrawingSupport() const { return fInstancedDrawingSupport; }
 
     /// Is there support for GL_EXT_direct_state_access?
     bool directStateAccessSupport() const { return fDirectStateAccessSupport; }
@@ -254,10 +291,19 @@ public:
 
     bool isCoreProfile() const { return fIsCoreProfile; }
 
-
-    bool fullClearIsFree() const { return fFullClearIsFree; }
-
     bool bindFragDataLocationSupport() const { return fBindFragDataLocationSupport; }
+
+    bool bindUniformLocationSupport() const { return fBindUniformLocationSupport; }
+
+    /// Are textures with GL_TEXTURE_EXTERNAL_OES type supported.
+    bool externalTextureSupport() const { return fExternalTextureSupport; }
+
+    /**
+     * Is there support for enabling/disabling sRGB writes for sRGB-capable color attachments?
+     * If false this does not mean sRGB is not supported but rather that if it is supported
+     * it cannot be turned off for configs that support it.
+     */
+    bool srgbWriteControl() const { return fSRGBWriteControl; }
 
     /**
      * Returns a string containing the caps info.
@@ -277,55 +323,24 @@ public:
 
     LATCAlias latcAlias() const { return fLATCAlias; }
 
-    GrGLSLCaps* glslCaps() const { return reinterpret_cast<GrGLSLCaps*>(fShaderCaps.get()); }
+    bool rgba8888PixelsOpsAreSlow() const { return fRGBA8888PixelsOpsAreSlow; }
+    bool partialFBOReadIsSlow() const { return fPartialFBOReadIsSlow; }
+
+    const GrGLSLCaps* glslCaps() const { return reinterpret_cast<GrGLSLCaps*>(fShaderCaps.get()); }
 
 private:
     void init(const GrContextOptions&, const GrGLContextInfo&, const GrGLInterface*);
+    void initGLSL(const GrGLContextInfo&);
     bool hasPathRenderingSupport(const GrGLContextInfo&, const GrGLInterface*);
 
-    /**
-     * Maintains a bit per GrPixelConfig. It is used to avoid redundantly
-     * performing glCheckFrameBufferStatus for the same config.
-     */
-    struct VerifiedColorConfigs {
-        VerifiedColorConfigs() {
-            this->reset();
-        }
-
-        void reset() {
-            for (int i = 0; i < kNumUints; ++i) {
-                fVerifiedColorConfigs[i] = 0;
-            }
-        }
-
-        static const int kNumUints = (kGrPixelConfigCnt  + 31) / 32;
-        uint32_t fVerifiedColorConfigs[kNumUints];
-
-        void markVerified(GrPixelConfig config) {
-#if !GR_GL_CHECK_FBO_STATUS_ONCE_PER_FORMAT
-                return;
-#endif
-            int u32Idx = config / 32;
-            int bitIdx = config % 32;
-            fVerifiedColorConfigs[u32Idx] |= 1 << bitIdx;
-        }
-
-        bool isVerified(GrPixelConfig config) const {
-#if !GR_GL_CHECK_FBO_STATUS_ONCE_PER_FORMAT
-            return false;
-#endif
-            int u32Idx = config / 32;
-            int bitIdx = config % 32;
-            return SkToBool(fVerifiedColorConfigs[u32Idx] & (1 << bitIdx));
-        }
-    };
+    void onApplyOptionsOverrides(const GrContextOptions& options) override;
 
     void initFSAASupport(const GrGLContextInfo&, const GrGLInterface*);
     void initBlendEqationSupport(const GrGLContextInfo&);
     void initStencilFormats(const GrGLContextInfo&);
     // This must be called after initFSAASupport().
-    void initConfigRenderableTable(const GrGLContextInfo&);
-    void initConfigTexturableTable(const GrGLContextInfo&, const GrGLInterface*);
+    void initConfigRenderableTable(const GrGLContextInfo&, bool srgbSupport);
+    void initConfigTexturableTable(const GrGLContextInfo&, const GrGLInterface*, bool srgbSupport);
 
     bool doReadPixelsSupported(const GrGLInterface* intf, GrGLenum format, GrGLenum type) const;
 
@@ -333,15 +348,11 @@ private:
                                   const GrGLInterface* intf,
                                   GrGLSLCaps* glslCaps);
 
-    // tracks configs that have been verified to pass the FBO completeness when
-    // used as a color attachment
-    VerifiedColorConfigs fVerifiedColorConfigs;
+    void initConfigSwizzleTable(const GrGLContextInfo& ctxInfo, GrGLSLCaps* glslCaps);
+
+    void initConfigTable(const GrGLContextInfo&);
 
     SkTArray<StencilFormat, true> fStencilFormats;
-    // tracks configs that have been verified to pass the FBO completeness when
-    // used as a color attachment when a particular stencil format is used
-    // as a stencil attachment.
-    SkTArray<VerifiedColorConfigs, true> fStencilVerifiedColorConfigs;
 
     int fMaxFragmentUniformVectors;
     int fMaxVertexAttributes;
@@ -350,11 +361,11 @@ private:
     MSFBOType           fMSFBOType;
     InvalidateFBType    fInvalidateFBType;
     MapBufferType       fMapBufferType;
+    TransferBufferType  fTransferBufferType;
     LATCAlias           fLATCAlias;
 
     bool fRGBA8RenderbufferSupport : 1;
     bool fBGRAIsInternalFormat : 1;
-    bool fTextureSwizzleSupport : 1;
     bool fUnpackRowLengthSupport : 1;
     bool fUnpackFlipYSupport : 1;
     bool fPackRowLengthSupport : 1;
@@ -364,17 +375,42 @@ private:
     bool fTextureRedSupport : 1;
     bool fImagingSupport  : 1;
     bool fTwoFormatLimit : 1;
-    bool fFragCoordsConventionSupport : 1;
     bool fVertexArrayObjectSupport : 1;
-    bool fInstancedDrawingSupport : 1;
     bool fDirectStateAccessSupport : 1;
     bool fDebugSupport : 1;
     bool fES2CompatibilitySupport : 1;
     bool fMultisampleDisableSupport : 1;
     bool fUseNonVBOVertexAndIndexDynamicData : 1;
     bool fIsCoreProfile : 1;
-    bool fFullClearIsFree : 1;
     bool fBindFragDataLocationSupport : 1;
+    bool fSRGBWriteControl : 1;
+    bool fRGBA8888PixelsOpsAreSlow : 1;
+    bool fPartialFBOReadIsSlow : 1;
+    bool fBindUniformLocationSupport : 1;
+    bool fExternalTextureSupport : 1;
+
+    struct ConfigInfo {
+        ConfigInfo() : fStencilFormatIndex(kUnknown_StencilIndex), fFlags(0) {};
+
+        ConfigFormats fFormats;
+
+        enum {
+            // This indicates that a stencil format has not yet been determined for the config.
+            kUnknown_StencilIndex = -1,
+            // This indicates that there is no supported stencil format for the config.
+            kUnsupported_StencilFormatIndex = -2
+        };
+
+        // Index fStencilFormats.
+        int      fStencilFormatIndex;
+
+        enum {
+            kVerifiedColorAttachment_Flag = 0x1
+        };
+        uint32_t fFlags;
+    };
+
+    ConfigInfo fConfigTable[kGrPixelConfigCnt];
 
     struct ReadPixelsSupportedFormat {
         GrGLenum fFormat;

@@ -18,10 +18,8 @@
 #include "GrContext.h"
 #include "GrSurfacePriv.h"
 
-struct SkDrawProcs;
-struct GrSkDrawProcs;
-
 class GrAccelData;
+class GrTextureProducer;
 struct GrCachedLayer;
 
 /**
@@ -50,7 +48,7 @@ public:
     /**
      * New device that will create an offscreen renderTarget based on the ImageInfo and
      * sampleCount. The Budgeted param controls whether the device's backing store counts against
-     * the resource cache budget. On failure, returns NULL.
+     * the resource cache budget. On failure, returns nullptr.
      */
     static SkGpuDevice* Create(GrContext*, SkSurface::Budgeted, const SkImageInfo&,
                                int sampleCount, const SkSurfaceProps*, InitContents);
@@ -60,7 +58,7 @@ public:
     SkGpuDevice* cloneDevice(const SkSurfaceProps& props) {
         SkBaseDevice* dev = this->onCreateDevice(CreateInfo(this->imageInfo(), kPossible_TileUsage,
                                                             props.pixelGeometry()),
-                                                 NULL);
+                                                 nullptr);
         return static_cast<SkGpuDevice*>(dev);
     }
 
@@ -118,6 +116,11 @@ public:
     void drawImageRect(const SkDraw&, const SkImage*, const SkRect* src, const SkRect& dst,
                        const SkPaint&, SkCanvas::SrcRectConstraint) override;
 
+    void drawImageNine(const SkDraw& draw, const SkImage* image, const SkIRect& center,
+                       const SkRect& dst, const SkPaint& paint) override;
+    void drawBitmapNine(const SkDraw& draw, const SkBitmap& bitmap, const SkIRect& center,
+                        const SkRect& dst, const SkPaint& paint) override;
+
     void flush() override;
 
     void onAttachToCanvas(SkCanvas* canvas) override;
@@ -135,6 +138,11 @@ public:
                        const SkImageFilter::Context&,
                        SkBitmap* result, SkIPoint* offset);
 
+    static SkImageFilter::Cache* NewImageFilterCache();
+
+    // for debugging purposes only
+    void drawTexture(GrTexture*, const SkRect& dst, const SkPaint&);
+
 protected:
     bool onReadPixels(const SkImageInfo&, void*, size_t, int, int) override;
     bool onWritePixels(const SkImageInfo&, const void*, size_t, int, int) override;
@@ -146,7 +154,6 @@ protected:
 
 private:
     GrContext*                      fContext;
-    GrSkDrawProcs*                  fDrawProcs;
     SkAutoTUnref<const SkClipStack> fClipStack;
     SkIPoint                        fClipOrigin;
     GrClip                          fClip;
@@ -179,21 +186,18 @@ private:
     void prepareDraw(const SkDraw&);
 
     /**
-     * Implementation for both drawBitmap and drawBitmapRect.
-     */
-    void drawBitmapCommon(const SkDraw&,
-                          const SkBitmap& bitmap,
-                          const SkRect* srcRectPtr,
-                          const SkSize* dstSizePtr,      // ignored iff srcRectPtr == NULL
-                          const SkPaint&,
-                          SkCanvas::SrcRectConstraint);
-
-    /**
      * Helper functions called by drawBitmapCommon. By the time these are called the SkDraw's
      * matrix, clip, and the device's render target has already been set on GrContext.
      */
 
     // The tileSize and clippedSrcRect will be valid only if true is returned.
+    bool shouldTileImageID(uint32_t imageID, const SkIRect& imageRect,
+                           const SkMatrix& viewMatrix,
+                           const GrTextureParams& params,
+                           const SkRect* srcRectPtr,
+                           int maxTileSize,
+                           int* tileSize,
+                           SkIRect* clippedSubset) const;
     bool shouldTileBitmap(const SkBitmap& bitmap,
                           const SkMatrix& viewMatrix,
                           const GrTextureParams& sampler,
@@ -201,6 +205,12 @@ private:
                           int maxTileSize,
                           int* tileSize,
                           SkIRect* clippedSrcRect) const;
+    // Just returns the predicate, not the out-tileSize or out-clippedSubset, as they are not
+    // needed at the moment.
+    bool shouldTileImage(const SkImage* image, const SkRect* srcRectPtr,
+                         SkCanvas::SrcRectConstraint constraint, SkFilterQuality quality,
+                         const SkMatrix& viewMatrix) const;
+
     void internalDrawBitmap(const SkBitmap&,
                             const SkMatrix& viewMatrix,
                             const SkRect&,
@@ -209,6 +219,7 @@ private:
                             SkCanvas::SrcRectConstraint,
                             bool bicubic,
                             bool needsTextureDomain);
+
     void drawTiledBitmap(const SkBitmap& bitmap,
                          const SkMatrix& viewMatrix,
                          const SkRect& srcRect,
@@ -218,6 +229,26 @@ private:
                          SkCanvas::SrcRectConstraint,
                          int tileSize,
                          bool bicubic);
+
+    void drawTextureProducer(GrTextureProducer*,
+                             const SkRect* srcRect,
+                             const SkRect* dstRect,
+                             SkCanvas::SrcRectConstraint,
+                             const SkMatrix& viewMatrix,
+                             const GrClip&,
+                             const SkPaint&);
+
+    void drawTextureProducerImpl(GrTextureProducer*,
+                                 const SkRect& clippedSrcRect,
+                                 const SkRect& clippedDstRect,
+                                 SkCanvas::SrcRectConstraint,
+                                 const SkMatrix& viewMatrix,
+                                 const SkMatrix& srcToDstMatrix,
+                                 const GrClip&,
+                                 const SkPaint&);
+
+    void drawProducerNine(const SkDraw&, GrTextureProducer*, const SkIRect& center,
+                          const SkRect& dst, const SkPaint&);
 
     bool drawDashLine(const SkPoint pts[2], const SkPaint& paint);
 

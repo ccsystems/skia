@@ -29,11 +29,14 @@ public:
     // Clear the table.
     void reset() {
         this->~SkTHashTable();
-        SkNEW_PLACEMENT(this, SkTHashTable);
+        new (this) SkTHashTable;
     }
 
     // How many entries are in the table?
     int count() const { return fCount; }
+
+    // Approximately how many bytes of memory do we use beyond sizeof(*this)?
+    size_t approxBytesUsed() const { return fCapacity * sizeof(Slot); }
 
     // !!!!!!!!!!!!!!!!!                 CAUTION                   !!!!!!!!!!!!!!!!!
     // set(), find() and foreach() all allow mutable access to table entries.
@@ -188,7 +191,7 @@ private:
 
 // Maps K->V.  A more user-friendly wrapper around SkTHashTable, suitable for most use cases.
 // K and V are treated as ordinary copyable C++ types, with no assumed relationship between the two.
-template <typename K, typename V, uint32_t(*HashK)(const K&) = &SkGoodHash>
+template <typename K, typename V, typename HashK = SkGoodHash>
 class SkTHashMap : SkNoncopyable {
 public:
     SkTHashMap() {}
@@ -198,6 +201,9 @@ public:
 
     // How many key/value pairs are in the table?
     int count() const { return fTable.count(); }
+
+    // Approximately how many bytes of memory do we use beyond sizeof(*this)?
+    size_t approxBytesUsed() const { return fTable.approxBytesUsed(); }
 
     // N.B. The pointers returned by set() and find() are valid only until the next call to set().
 
@@ -241,14 +247,14 @@ private:
         K key;
         V val;
         static const K& GetKey(const Pair& p) { return p.key; }
-        static uint32_t Hash(const K& key) { return HashK(key); }
+        static uint32_t Hash(const K& key) { return HashK()(key); }
     };
 
     SkTHashTable<Pair, K> fTable;
 };
 
 // A set of T.  T is treated as an ordiary copyable C++ type.
-template <typename T, uint32_t(*HashT)(const T&) = &SkGoodHash>
+template <typename T, typename HashT = SkGoodHash>
 class SkTHashSet : SkNoncopyable {
 public:
     SkTHashSet() {}
@@ -258,6 +264,9 @@ public:
 
     // How many items are in the set?
     int count() const { return fTable.count(); }
+
+    // Approximately how many bytes of memory do we use beyond sizeof(*this)?
+    size_t approxBytesUsed() const { return fTable.approxBytesUsed(); }
 
     // Copy an item into the set.
     void add(const T& item) { fTable.set(item); }
@@ -284,7 +293,7 @@ public:
 private:
     struct Traits {
         static const T& GetKey(const T& item) { return item; }
-        static uint32_t Hash(const T& item) { return HashT(item); }
+        static uint32_t Hash(const T& item) { return HashT()(item); }
     };
     SkTHashTable<T, T, Traits> fTable;
 };

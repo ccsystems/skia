@@ -6,9 +6,10 @@
  */
 
 #include "gm.h"
-#include "SkCanvas.h"
-#include "SkShader.h"
 #include "SkBlurMaskFilter.h"
+#include "SkCanvas.h"
+#include "SkPath.h"
+#include "SkShader.h"
 
 namespace skiagm {
 
@@ -20,8 +21,8 @@ class SamplerStressGM : public GM {
 public:
     SamplerStressGM()
     : fTextureCreated(false)
-    , fShader(NULL)
-    , fMaskFilter(NULL) {
+    , fShader(nullptr)
+    , fMaskFilter(nullptr) {
     }
 
     virtual ~SamplerStressGM() {

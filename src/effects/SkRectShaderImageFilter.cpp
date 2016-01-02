@@ -13,23 +13,23 @@
 #include "SkWriteBuffer.h"
 #include "SkShader.h"
 
-SkRectShaderImageFilter* SkRectShaderImageFilter::Create(SkShader* s, const SkRect& rect) {
+SkImageFilter* SkRectShaderImageFilter::Create(SkShader* s, const SkRect& rect) {
     SkASSERT(s);
     uint32_t flags = CropRect::kHasAll_CropEdge;
     if (rect.width() == 0 || rect.height() == 0) {
         flags = 0x0;
     }
     CropRect cropRect(rect, flags);
-    return s ? SkNEW_ARGS(SkRectShaderImageFilter, (s, &cropRect)) : NULL;
+    return s ? new SkRectShaderImageFilter(s, &cropRect) : nullptr;
 }
 
-SkRectShaderImageFilter* SkRectShaderImageFilter::Create(SkShader* s, const CropRect* cropRect) {
+SkImageFilter* SkRectShaderImageFilter::Create(SkShader* s, const CropRect* cropRect) {
     SkASSERT(s);
-    return s ? SkNEW_ARGS(SkRectShaderImageFilter, (s, cropRect)) : NULL;
+    return s ? new SkRectShaderImageFilter(s, cropRect) : nullptr;
 }
 
 SkRectShaderImageFilter::SkRectShaderImageFilter(SkShader* s, const CropRect* cropRect)
-  : INHERITED(0, NULL, cropRect)
+  : INHERITED(0, nullptr, cropRect)
   , fShader(SkRef(s)) {
 }
 
@@ -60,7 +60,7 @@ bool SkRectShaderImageFilter::onFilterImage(Proxy* proxy,
 
     SkAutoTUnref<SkBaseDevice> device(proxy->createDevice(bounds.width(),
                                                           bounds.height()));
-    if (NULL == device.get()) {
+    if (nullptr == device.get()) {
         return false;
     }
     SkCanvas canvas(device.get());
@@ -68,7 +68,7 @@ bool SkRectShaderImageFilter::onFilterImage(Proxy* proxy,
     SkPaint paint;
     SkMatrix matrix(ctx.ctm());
     matrix.postTranslate(SkIntToScalar(-bounds.left()), SkIntToScalar(-bounds.top()));
-    SkSafeUnref(paint.setShader(SkShader::CreateLocalMatrixShader(fShader, matrix)));
+    SkSafeUnref(paint.setShader(fShader->newWithLocalMatrix(matrix)));
 
     SkRect rect = SkRect::MakeWH(SkIntToScalar(bounds.width()), SkIntToScalar(bounds.height()));
     canvas.drawRect(rect, paint);
@@ -77,6 +77,13 @@ bool SkRectShaderImageFilter::onFilterImage(Proxy* proxy,
     offset->fX = bounds.fLeft;
     offset->fY = bounds.fTop;
     return true;
+}
+
+bool SkRectShaderImageFilter::canComputeFastBounds() const {
+    // http:skbug.com/4627: "make computeFastBounds and onFilterBounds() CropRect-aware"
+    // computeFastBounds() doesn't currently take the crop rect into account,
+    // so we can't compute it. If a full crop rect is set, we should return true here.
+    return false;
 }
 
 #ifndef SK_IGNORE_TO_STRING

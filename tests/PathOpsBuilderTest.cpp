@@ -31,7 +31,7 @@ DEF_TEST(PathOpsBuilder, reporter) {
     REPORTER_ASSERT(reporter, builder.resolve(&result));
     bool closed;
     SkPath::Direction dir;
-    REPORTER_ASSERT(reporter, result.isRect(NULL, &closed, &dir));
+    REPORTER_ASSERT(reporter, result.isRect(nullptr, &closed, &dir));
     REPORTER_ASSERT(reporter, closed);
     REPORTER_ASSERT(reporter, dir == SkPath::kCCW_Direction);
     int pixelDiff = comparePaths(reporter, __FUNCTION__, rectPath, result);
@@ -42,7 +42,7 @@ DEF_TEST(PathOpsBuilder, reporter) {
     rectPath.addRect(0, 1, 2, 3, SkPath::kCCW_Direction);
     builder.add(rectPath, kUnion_SkPathOp);
     REPORTER_ASSERT(reporter, builder.resolve(&result));
-    REPORTER_ASSERT(reporter, result.isRect(NULL, &closed, &dir));
+    REPORTER_ASSERT(reporter, result.isRect(nullptr, &closed, &dir));
     REPORTER_ASSERT(reporter, closed);
     REPORTER_ASSERT(reporter, dir == SkPath::kCCW_Direction);
     REPORTER_ASSERT(reporter, rectPath == result);
@@ -58,7 +58,7 @@ DEF_TEST(PathOpsBuilder, reporter) {
     builder.add(rect2, kUnion_SkPathOp);
     builder.add(rect3, kUnion_SkPathOp);
     REPORTER_ASSERT(reporter, builder.resolve(&result));
-    REPORTER_ASSERT(reporter, result.isRect(NULL, &closed, &dir));
+    REPORTER_ASSERT(reporter, result.isRect(nullptr, &closed, &dir));
     REPORTER_ASSERT(reporter, closed);
     SkRect expected;
     expected.set(0, 1, 5, 3);
@@ -271,3 +271,33 @@ DEF_TEST(Fuzz846, reporter) {
     builder.resolve(&result);
 }
 
+DEF_TEST(Issue569540, reporter) {
+    SkPath path1;
+    path1.moveTo(5, -225);
+    path1.lineTo(-225, 7425);
+    path1.lineTo(7425, 7425);
+    path1.lineTo(7425, -225);
+    path1.lineTo(-225, -225);
+    path1.lineTo(5, -225);
+    path1.close();
+
+    SkPath path2;
+    path2.moveTo(5940, 2790);
+    path2.lineTo(5940, 2160);
+    path2.lineTo(5970, 1980);
+    path2.lineTo(5688, 773669888);
+    path2.lineTo(5688, 2160);
+    path2.lineTo(5688, 2430);
+    path2.lineTo(5400, 4590);
+    path2.lineTo(5220, 4590);
+    path2.lineTo(5220, 4920);
+    path2.cubicTo(5182.22900390625f, 4948.328125f, 5160, 4992.78662109375f, 5160, 5040.00048828125f);
+    path2.lineTo(5940, 2790);
+    path2.close();
+
+    SkOpBuilder builder;
+    builder.add(path1, kUnion_SkPathOp);
+    builder.add(path2, kUnion_SkPathOp);
+    SkPath result;
+    builder.resolve(&result);
+}

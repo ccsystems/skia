@@ -58,8 +58,9 @@ protected:
                 SkScalar sigmaY = kBlurSigmas[y];
 
                 SkPaint paint;
-                paint.setImageFilter(SkBlurImageFilter::Create(sigmaX, sigmaY))->unref();
-                canvas->saveLayer(NULL, &paint);
+                SkAutoTUnref<SkImageFilter> blur(SkBlurImageFilter::Create(sigmaX, sigmaY));
+                paint.setImageFilter(blur);
+                canvas->saveLayer(nullptr, &paint);
 
                 SkRandom rand;
                 SkPaint textPaint;

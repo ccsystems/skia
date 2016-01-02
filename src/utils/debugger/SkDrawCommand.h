@@ -10,7 +10,11 @@
 #define SKDRAWCOMMAND_H_
 
 #include "SkCanvas.h"
+#include "SkTLazy.h"
+#include "SkPath.h"
+#include "SkRRect.h"
 #include "SkString.h"
+#include "SkTDArray.h"
 
 class SK_API SkDrawCommand {
 public:
@@ -37,7 +41,6 @@ public:
         kDrawPosTextH_OpType,
         kDrawRect_OpType,
         kDrawRRect_OpType,
-        kDrawSprite_OpType,
         kDrawText_OpType,
         kDrawTextBlob_OpType,
         kDrawTextOnPath_OpType,
@@ -246,7 +249,7 @@ public:
 
     void setPaint(const SkPaint& paint) { fPaint = paint; fPaintPtr = &fPaint; }
 
-    const SkRect* srcRect() const { return fSrc.isEmpty() ? NULL : &fSrc; }
+    const SkRect* srcRect() const { return fSrc.isEmpty() ? nullptr : &fSrc; }
     void setSrcRect(const SkRect& src) { fSrc = src; }
 
     const SkRect& dstRect() const { return fDst; }
@@ -514,21 +517,6 @@ private:
     typedef SkDrawCommand INHERITED;
 };
 
-class SkDrawSpriteCommand : public SkDrawCommand {
-public:
-    SkDrawSpriteCommand(const SkBitmap& bitmap, int left, int top, const SkPaint* paint);
-    void execute(SkCanvas* canvas) const override;
-    bool render(SkCanvas* canvas) const override;
-private:
-    SkBitmap fBitmap;
-    int      fLeft;
-    int      fTop;
-    SkPaint  fPaint;
-    SkPaint* fPaintPtr;
-
-    typedef SkDrawCommand INHERITED;
-};
-
 class SkDrawVerticesCommand : public SkDrawCommand {
 public:
     SkDrawVerticesCommand(SkCanvas::VertexMode vmode, int vertexCount,
@@ -563,8 +551,7 @@ private:
 
 class SkSaveLayerCommand : public SkDrawCommand {
 public:
-    SkSaveLayerCommand(const SkRect* bounds, const SkPaint* paint,
-                       SkCanvas::SaveFlags flags);
+    SkSaveLayerCommand(const SkCanvas::SaveLayerRec&);
     void execute(SkCanvas* canvas) const override;
     void vizExecute(SkCanvas* canvas) const override;
     Action action() const override{ return kPushLayer_Action; }
@@ -574,12 +561,12 @@ public:
     const SkPaint* paint() const { return fPaintPtr; }
 
 private:
-    SkRect              fBounds;
-    SkPaint             fPaint;
-    SkPaint*            fPaintPtr;
-    SkCanvas::SaveFlags fFlags;
+    SkRect      fBounds;
+    SkPaint     fPaint;
+    SkPaint*    fPaintPtr;
+    uint32_t    fSaveLayerFlags;
 
-    bool                fActive;
+    bool        fActive;
 
     typedef SkDrawCommand INHERITED;
 };

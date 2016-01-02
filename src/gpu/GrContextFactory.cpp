@@ -11,6 +11,9 @@
 #if SK_ANGLE
     #include "gl/angle/SkANGLEGLContext.h"
 #endif
+#if SK_COMMAND_BUFFER
+    #include "gl/command_buffer/SkCommandBufferGLContext.h"
+#endif
 #include "gl/debug/SkDebugGLContext.h"
 #if SK_MESA
     #include "gl/mesa/SkMesaGLContext.h"
@@ -20,90 +23,89 @@
 #include "gl/GrGLGpu.h"
 #include "GrCaps.h"
 
-GrContext* GrContextFactory::get(GLContextType type, GrGLStandard forcedGpuAPI) {
+GrContextFactory::ContextInfo* GrContextFactory::getContextInfo(GLContextType type,
+                                                                GLContextOptions options) {
     for (int i = 0; i < fContexts.count(); ++i) {
-        if (forcedGpuAPI != kNone_GrGLStandard &&
-            forcedGpuAPI != fContexts[i].fGLContext->gl()->fStandard)
-            continue;
-
-        if (fContexts[i].fType == type) {
-            fContexts[i].fGLContext->makeCurrent();
-            return fContexts[i].fGrContext;
+        if (fContexts[i]->fType == type &&
+            fContexts[i]->fOptions == options) {
+            fContexts[i]->fGLContext->makeCurrent();
+            return fContexts[i];
         }
     }
     SkAutoTUnref<SkGLContext> glCtx;
     SkAutoTUnref<GrContext> grCtx;
     switch (type) {
-        case kNVPR_GLContextType: // fallthru
         case kNative_GLContextType:
-            glCtx.reset(SkCreatePlatformGLContext(forcedGpuAPI));
+            glCtx.reset(SkCreatePlatformGLContext(kNone_GrGLStandard));
             break;
-#ifdef SK_ANGLE
+        case kGL_GLContextType:
+            glCtx.reset(SkCreatePlatformGLContext(kGL_GrGLStandard));
+            break;
+        case kGLES_GLContextType:
+            glCtx.reset(SkCreatePlatformGLContext(kGLES_GrGLStandard));
+            break;
+#if SK_ANGLE
+#ifdef SK_BUILD_FOR_WIN
         case kANGLE_GLContextType:
-            glCtx.reset(SkANGLEGLContext::Create(forcedGpuAPI));
+            glCtx.reset(SkANGLEGLContext::CreateDirectX());
             break;
 #endif
-#ifdef SK_MESA
+        case kANGLE_GL_GLContextType:
+            glCtx.reset(SkANGLEGLContext::CreateOpenGL());
+            break;
+#endif
+#if SK_COMMAND_BUFFER
+        case kCommandBuffer_GLContextType:
+            glCtx.reset(SkCommandBufferGLContext::Create());
+            break;
+#endif
+#if SK_MESA
         case kMESA_GLContextType:
-            glCtx.reset(SkMesaGLContext::Create(forcedGpuAPI));
+            glCtx.reset(SkMesaGLContext::Create());
             break;
 #endif
         case kNull_GLContextType:
-            glCtx.reset(SkNullGLContext::Create(forcedGpuAPI));
+            glCtx.reset(SkNullGLContext::Create());
             break;
         case kDebug_GLContextType:
-            glCtx.reset(SkDebugGLContext::Create(forcedGpuAPI));
+            glCtx.reset(SkDebugGLContext::Create());
             break;
     }
-    if (NULL == glCtx.get()) {
-        return NULL;
+    if (nullptr == glCtx.get()) {
+        return nullptr;
     }
 
     SkASSERT(glCtx->isValid());
 
     // Block NVPR from non-NVPR types.
     SkAutoTUnref<const GrGLInterface> glInterface(SkRef(glCtx->gl()));
-    if (kNVPR_GLContextType != type) {
+    if (!(kEnableNVPR_GLContextOptions & options)) {
         glInterface.reset(GrGLInterfaceRemoveNVPR(glInterface));
         if (!glInterface) {
-            return NULL;
-        }
-    } else {
-        if (!glInterface->hasExtension("GL_NV_path_rendering")) {
-            return NULL;
+            return nullptr;
         }
     }
 
     glCtx->makeCurrent();
     GrBackendContext p3dctx = reinterpret_cast<GrBackendContext>(glInterface.get());
+#ifdef SK_VULKAN
+    grCtx.reset(GrContext::Create(kVulkan_GrBackend, p3dctx, fGlobalOptions));
+#else
     grCtx.reset(GrContext::Create(kOpenGL_GrBackend, p3dctx, fGlobalOptions));
+#endif
     if (!grCtx.get()) {
-        return NULL;
+        return nullptr;
     }
-    // Warn if path rendering support is not available for the NVPR type.
-    if (kNVPR_GLContextType == type) {
+    if (kEnableNVPR_GLContextOptions & options) {
         if (!grCtx->caps()->shaderCaps()->pathRenderingSupport()) {
-            GrGpu* gpu = grCtx->getGpu();
-            const GrGLContext* ctx = gpu->glContextForTesting();
-            if (ctx) {
-                const GrGLubyte* verUByte;
-                GR_GL_CALL_RET(ctx->interface(), verUByte, GetString(GR_GL_VERSION));
-                const char* ver = reinterpret_cast<const char*>(verUByte);
-                SkDebugf("\nWARNING: nvprmsaa config requested, but driver path rendering "
-                         "support not available. Maybe update the driver? Your driver version "
-                         "string: \"%s\"\n", ver);
-            } else {
-                SkDebugf("\nWARNING: nvprmsaa config requested, but driver path rendering "
-                         "support not available.\n");
-            }
+            return nullptr;
         }
     }
 
-    GPUContext& ctx = fContexts.push_back();
-    ctx.fGLContext = glCtx.get();
-    ctx.fGLContext->ref();
-    ctx.fGrContext = grCtx.get();
-    ctx.fGrContext->ref();
-    ctx.fType = type;
-    return ctx.fGrContext;
+    ContextInfo* ctx = fContexts.emplace_back(new ContextInfo);
+    ctx->fGLContext = SkRef(glCtx.get());
+    ctx->fGrContext = SkRef(grCtx.get());
+    ctx->fType = type;
+    ctx->fOptions = options;
+    return ctx;
 }

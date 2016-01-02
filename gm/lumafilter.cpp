@@ -38,7 +38,7 @@ static void draw_scene(SkCanvas* canvas, SkColorFilter* filter,
     paint.setARGB(0x20, 0, 0, 0xff);
     canvas->drawRect(bounds, paint);
 
-    canvas->saveLayer(&bounds, NULL);
+    canvas->saveLayer(&bounds, nullptr);
 
     r = bounds;
     r.inset(kInset, 0);
@@ -119,9 +119,9 @@ protected:
             SkShader*   fShader1;
             SkShader*   fShader2;
         } shaders[] = {
-            { NULL, NULL },
-            { NULL, fGr2 },
-            { fGr1, NULL },
+            { nullptr, nullptr },
+            { nullptr, fGr2 },
+            { fGr1, nullptr },
             { fGr1, fGr2 },
         };
 
@@ -152,4 +152,4 @@ private:
 
 //////////////////////////////////////////////////////////////////////////////
 
-DEF_GM( return SkNEW(LumaFilterGM); )
+DEF_GM(return new LumaFilterGM;)

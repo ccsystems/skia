@@ -32,8 +32,8 @@ private:
 //read in Intel order, and return an integer
 
 #define readByte(buffer,begin) buffer[begin]
-#define read2Bytes(buffer,begin) buffer[begin]+(buffer[begin+1]<<8)
-#define read4Bytes(buffer,begin) buffer[begin]+(buffer[begin+1]<<8)+(buffer[begin+2]<<16)+(buffer[begin+3]<<24)
+#define read2Bytes(buffer,begin) buffer[begin]+SkLeftShift(buffer[begin+1],8)
+#define read4Bytes(buffer,begin) buffer[begin]+SkLeftShift(buffer[begin+1],8)+SkLeftShift(buffer[begin+2],16)+SkLeftShift(buffer[begin+3],24)
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -127,7 +127,7 @@ SkImageDecoder::Result SkICOImageDecoder::onDecode(SkStream* stream, SkBitmap* b
     {
         SkMemoryStream subStream(buf + offset, size, false);
         SkAutoTDelete<SkImageDecoder> otherDecoder(SkImageDecoder::Factory(&subStream));
-        if (otherDecoder.get() != NULL) {
+        if (otherDecoder.get() != nullptr) {
             // Disallow nesting ICO files within one another
             // FIXME: Can ICO files contain other formats besides PNG?
             if (otherDecoder->getFormat() == SkImageDecoder::kICO_Format) {
@@ -167,7 +167,7 @@ SkImageDecoder::Result SkICOImageDecoder::onDecode(SkStream* stream, SkBitmap* b
 
     void (*placePixel)(const int pixelNo, const unsigned char* buf,
         const int xorOffset, int& x, int y, const int w,
-        SkBitmap* bm, int alphaByte, int m, int shift, SkPMColor* colors) = NULL;
+        SkBitmap* bm, int alphaByte, int m, int shift, SkPMColor* colors) = nullptr;
     switch (bitCount)
     {
         case 1:
@@ -212,7 +212,7 @@ SkImageDecoder::Result SkICOImageDecoder::onDecode(SkStream* stream, SkBitmap* b
 
     //this array represents the colortable
     //if i allow other types of bitmaps, it may actually be used as a part of the bitmap
-    SkPMColor* colors = NULL;
+    SkPMColor* colors = nullptr;
     int blue, green, red;
     if (colorCount)
     {
@@ -252,7 +252,7 @@ SkImageDecoder::Result SkICOImageDecoder::onDecode(SkStream* stream, SkBitmap* b
         return kSuccess;
     }
 
-    if (!this->allocPixelRef(bm, NULL))
+    if (!this->allocPixelRef(bm, nullptr))
     {
         delete[] colors;
         return kFailure;
@@ -435,9 +435,9 @@ static bool is_ico(SkStreamRewindable* stream) {
 
 static SkImageDecoder* sk_libico_dfactory(SkStreamRewindable* stream) {
     if (is_ico(stream)) {
-        return SkNEW(SkICOImageDecoder);
+        return new SkICOImageDecoder;
     }
-    return NULL;
+    return nullptr;
 }
 
 static SkImageDecoder_DecodeReg gReg(sk_libico_dfactory);

@@ -18,7 +18,7 @@
 
 class DrawLooperGM : public skiagm::GM {
 public:
-    DrawLooperGM() : fLooper(NULL) {
+    DrawLooperGM() : fLooper(nullptr) {
         this->setBGColor(sk_tool_utils::color_to_565(0xFFDDDDDD));
     }
 
@@ -99,5 +99,4 @@ private:
 
 //////////////////////////////////////////////////////////////////////////////
 
-static skiagm::GM* MyFactory(void*) { return new DrawLooperGM; }
-static skiagm::GMRegistry reg(MyFactory);
+DEF_GM( return new DrawLooperGM; )

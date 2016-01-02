@@ -11,9 +11,13 @@
 #include "SkBitmap.h"
 #include "SkBitmapController.h"
 #include "SkBitmapFilter.h"
+#include "SkBitmapProvider.h"
+#include "SkFloatBits.h"
 #include "SkMatrix.h"
 #include "SkMipMap.h"
 #include "SkPaint.h"
+#include "SkShader.h"
+#include "SkTemplates.h"
 
 typedef SkFixed3232    SkFractionalInt;
 #define SkScalarToFractionalInt(x)  SkScalarToFixed3232(x)
@@ -21,17 +25,27 @@ typedef SkFixed3232    SkFractionalInt;
 #define SkFixedToFractionalInt(x)   SkFixedToFixed3232(x)
 #define SkFractionalIntToInt(x)     SkFixed3232ToInt(x)
 
+// Applying a fixed point (SkFixed, SkFractionalInt) epsilon bias ensures that the inverse-mapped
+// bitmap coordinates are rounded consistently WRT geometry.  Note that we only have to do this
+// when the scale is positive - for negative scales we're already rounding in the right direction.
+static inline int bitmap_sampler_inv_bias(SkScalar scale) {
+#ifndef SK_SUPPORT_LEGACY_BITMAP_SAMPLER_BIAS
+    return -(scale > 0);
+#else
+    return 0;
+#endif
+}
+
 class SkPaint;
 
 struct SkBitmapProcState {
-    SkBitmapProcState();
+    SkBitmapProcState(const SkBitmapProvider&, SkShader::TileMode tmx, SkShader::TileMode tmy);
+    SkBitmapProcState(const SkBitmap&, SkShader::TileMode tmx, SkShader::TileMode tmy);
     ~SkBitmapProcState();
 
-    typedef void (*ShaderProc32)(const SkBitmapProcState&, int x, int y,
-                                 SkPMColor[], int count);
+    typedef void (*ShaderProc32)(const void* ctx, int x, int y, SkPMColor[], int count);
 
-    typedef void (*ShaderProc16)(const SkBitmapProcState&, int x, int y,
-                                 uint16_t[], int count);
+    typedef void (*ShaderProc16)(const void* ctx, int x, int y, uint16_t[], int count);
 
     typedef void (*MatrixProc)(const SkBitmapProcState&,
                                uint32_t bitmapXY[],
@@ -118,15 +132,16 @@ struct SkBitmapProcState {
 
 private:
     friend class SkBitmapProcShader;
+    friend class SkLightingShaderImpl;
 
     ShaderProc32        fShaderProc32;      // chooseProcs
     ShaderProc16        fShaderProc16;      // chooseProcs
-    // These are used if the shaderproc is NULL
+    // These are used if the shaderproc is nullptr
     MatrixProc          fMatrixProc;        // chooseProcs
     SampleProc32        fSampleProc32;      // chooseProcs
     SampleProc16        fSampleProc16;      // chooseProcs
 
-    SkBitmap            fOrigBitmap;        // CONSTRUCTOR
+    const SkBitmapProvider fProvider;
 
     enum {
         kBMStateSize = 136  // found by inspection. if too small, we will call new/delete

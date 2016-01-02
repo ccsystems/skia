@@ -12,7 +12,9 @@
 #include "SkFlattenable.h"
 #include "SkPicture.h"
 #include "SkPictureData.h"
-#include "SkTemplates.h"
+#include "SkTArray.h"
+#include "SkTDArray.h"
+#include "SkTHash.h"
 #include "SkWriter32.h"
 
 // These macros help with packing and unpacking a single byte value and
@@ -40,7 +42,7 @@ public:
     const SkTDArray<const SkImage* >& getImageRefs() const {
         return fImageRefs;
     }
-    
+
     SkData* opData(bool deepCopy) const {
         this->validate(fWriter.bytesWritten(), 0);
 
@@ -151,7 +153,7 @@ protected:
     bool onPeekPixels(SkPixmap*) override { return false; }
 
     void willSave() override;
-    SaveLayerStrategy willSaveLayer(const SkRect*, const SkPaint*, SaveFlags) override;
+    SaveLayerStrategy getSaveLayerStrategy(const SaveLayerRec&) override;
     void willRestore() override;
 
     void didConcat(const SkMatrix&) override;
@@ -190,7 +192,6 @@ protected:
                          const SkPaint*) override;
     void onDrawBitmapNine(const SkBitmap&, const SkIRect& center, const SkRect& dst,
                           const SkPaint*) override;
-    void onDrawSprite(const SkBitmap&, int left, int top, const SkPaint*) override;
     void onDrawVertices(VertexMode vmode, int vertexCount,
                         const SkPoint vertices[], const SkPoint texs[],
                         const SkColor colors[], SkXfermode* xmode,
@@ -217,7 +218,7 @@ protected:
     size_t recordClipPath(int pathID, SkRegion::Op op, bool doAA);
     size_t recordClipRegion(const SkRegion& region, SkRegion::Op op);
     void recordSave();
-    void recordSaveLayer(const SkRect* bounds, const SkPaint* paint, SaveFlags flags);
+    void recordSaveLayer(const SaveLayerRec&);
     void recordRestore(bool fillInSkips = true);
 
 private:
@@ -225,7 +226,11 @@ private:
 
     SkTArray<SkBitmap> fBitmaps;
     SkTArray<SkPaint>  fPaints;
-    SkTArray<SkPath>   fPaths;
+
+    struct PathHash {
+        uint32_t operator()(const SkPath& p) { return p.getGenerationID(); }
+    };
+    SkTHashMap<SkPath, int, PathHash> fPaths;
 
     SkWriter32 fWriter;
 

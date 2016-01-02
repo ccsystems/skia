@@ -12,7 +12,7 @@
 #include "SkUtils.h"
 
 void SkAutoPixmapUnlock::reset(const SkPixmap& pm, void (*unlock)(void*), void* ctx) {
-    SkASSERT(pm.addr() != NULL);
+    SkASSERT(pm.addr() != nullptr);
 
     this->unlock();
     fPixmap = pm;
@@ -24,8 +24,8 @@ void SkAutoPixmapUnlock::reset(const SkPixmap& pm, void (*unlock)(void*), void* 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SkPixmap::reset() {
-    fPixels = NULL;
-    fCTable = NULL;
+    fPixels = nullptr;
+    fCTable = nullptr;
     fRowBytes = 0;
     fInfo = SkImageInfo::MakeUnknown();
 }
@@ -43,7 +43,7 @@ void SkPixmap::reset(const SkImageInfo& info, const void* addr, size_t rowBytes,
 bool SkPixmap::reset(const SkMask& src) {
     if (SkMask::kA8_Format == src.fFormat) {
         this->reset(SkImageInfo::MakeA8(src.fBounds.width(), src.fBounds.height()),
-                    src.fImage, src.fRowBytes, NULL);
+                    src.fImage, src.fRowBytes, nullptr);
         return true;
     }
     this->reset();
@@ -62,7 +62,7 @@ bool SkPixmap::extractSubset(SkPixmap* result, const SkIRect& subset) const {
     SkASSERT(static_cast<unsigned>(r.fLeft) < static_cast<unsigned>(this->width()));
     SkASSERT(static_cast<unsigned>(r.fTop) < static_cast<unsigned>(this->height()));
 
-    const void* pixels = NULL;
+    const void* pixels = nullptr;
     if (fPixels) {
         const size_t bpp = fInfo.bytesPerPixel();
         pixels = (const uint8_t*)fPixels + r.fTop * fRowBytes + r.fLeft * bpp;
@@ -76,7 +76,7 @@ bool SkPixmap::readPixels(const SkImageInfo& requestedDstInfo, void* dstPixels, 
     if (kUnknown_SkColorType == requestedDstInfo.colorType()) {
         return false;
     }
-    if (NULL == dstPixels || dstRB < requestedDstInfo.minRowBytes()) {
+    if (nullptr == dstPixels || dstRB < requestedDstInfo.minRowBytes()) {
         return false;
     }
     if (0 == requestedDstInfo.width() || 0 == requestedDstInfo.height()) {
@@ -116,7 +116,7 @@ static uint16_t pack_8888_to_4444(unsigned a, unsigned r, unsigned g, unsigned b
 }
 
 bool SkPixmap::erase(SkColor color, const SkIRect& inArea) const {
-    if (NULL == fPixels) {
+    if (nullptr == fPixels) {
         return false;
     }
     SkIRect area;
@@ -163,9 +163,9 @@ bool SkPixmap::erase(SkColor color, const SkIRect& inArea) const {
             
             // make rgb premultiplied
             if (255 != a) {
-                r = SkAlphaMul(r, a);
-                g = SkAlphaMul(g, a);
-                b = SkAlphaMul(b, a);
+                r = SkMulDiv255Round(r, a);
+                g = SkMulDiv255Round(g, a);
+                b = SkMulDiv255Round(b, a);
             }
             
             if (kARGB_4444_SkColorType == this->colorType()) {
@@ -186,13 +186,14 @@ bool SkPixmap::erase(SkColor color, const SkIRect& inArea) const {
             uint32_t* p = this->writable_addr32(area.fLeft, area.fTop);
             
             if (255 != a && kPremul_SkAlphaType == this->alphaType()) {
-                r = SkAlphaMul(r, a);
-                g = SkAlphaMul(g, a);
-                b = SkAlphaMul(b, a);
+                r = SkMulDiv255Round(r, a);
+                g = SkMulDiv255Round(g, a);
+                b = SkMulDiv255Round(b, a);
             }
-            uint32_t v = kRGBA_8888_SkColorType == this->colorType() ?
-            SkPackARGB_as_RGBA(a, r, g, b) : SkPackARGB_as_BGRA(a, r, g, b);
-            
+            uint32_t v = kRGBA_8888_SkColorType == this->colorType()
+                             ? SkPackARGB_as_RGBA(a, r, g, b)
+                             : SkPackARGB_as_BGRA(a, r, g, b);
+
             while (--height >= 0) {
                 sk_memset32(p, v, width);
                 p = (uint32_t*)((char*)p + rowBytes);
@@ -205,9 +206,45 @@ bool SkPixmap::erase(SkColor color, const SkIRect& inArea) const {
     return true;
 }
 
+#include "SkBitmap.h"
+#include "SkCanvas.h"
+#include "SkSurface.h"
+#include "SkXfermode.h"
+
+bool SkPixmap::scalePixels(const SkPixmap& dst, SkFilterQuality quality) const {
+    // Can't do anthing with empty src or dst
+    if (this->width() <= 0 || this->height() <= 0 || dst.width() <= 0 || dst.height() <= 0) {
+        return false;
+    }
+
+    // no scaling involved?
+    if (dst.width() == this->width() && dst.height() == this->height()) {
+        return this->readPixels(dst);
+    }
+
+    SkBitmap bitmap;
+    if (!bitmap.installPixels(*this)) {
+        return false;
+    }
+    bitmap.setIsVolatile(true); // so we don't try to cache it
+
+    SkAutoTUnref<SkSurface> surface(SkSurface::NewRasterDirect(dst.info(), dst.writable_addr(),
+                                                               dst.rowBytes()));
+    if (!surface) {
+        return false;
+    }
+
+    SkPaint paint;
+    paint.setFilterQuality(quality);
+    paint.setXfermodeMode(SkXfermode::kSrc_Mode);
+    surface->getCanvas()->drawBitmapRect(bitmap, SkRect::MakeIWH(dst.width(), dst.height()),
+                                         &paint);
+    return true;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
-SkAutoPixmapStorage::SkAutoPixmapStorage() : fStorage(NULL) {}
+SkAutoPixmapStorage::SkAutoPixmapStorage() : fStorage(nullptr) {}
 
 SkAutoPixmapStorage::~SkAutoPixmapStorage() {
     this->freeStorage();
@@ -222,7 +259,7 @@ bool SkAutoPixmapStorage::tryAlloc(const SkImageInfo& info) {
         return false;
     }
     void* pixels = sk_malloc_flags(size, 0);
-    if (NULL == pixels) {
+    if (nullptr == pixels) {
         return false;
     }
     this->reset(info, pixels, rb);

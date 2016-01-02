@@ -13,6 +13,7 @@
 
 #include "SkBlurImageFilter.h"
 #include "SkCanvas.h"
+#include "SkColorFilter.h"
 #include "SkData.h"
 #include "SkDocument.h"
 #include "SkGradientShader.h"
@@ -42,6 +43,7 @@ template <typename T> const char* get_mtname();
     }
 
 DEF_MTNAME(SkCanvas)
+DEF_MTNAME(SkColorFilter)
 DEF_MTNAME(SkDocument)
 DEF_MTNAME(SkImage)
 DEF_MTNAME(SkImageFilter)
@@ -502,13 +504,13 @@ static SkPaint* lua2OptionalPaint(lua_State* L, int index, SkPaint* paint) {
             return paint;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 static int lcanvas_drawImage(lua_State* L) {
     SkCanvas* canvas = get_ref<SkCanvas>(L, 1);
     SkImage* image = get_ref<SkImage>(L, 2);
-    if (NULL == image) {
+    if (nullptr == image) {
         return 0;
     }
     SkScalar x = lua2scalar(L, 3);
@@ -522,19 +524,19 @@ static int lcanvas_drawImage(lua_State* L) {
 static int lcanvas_drawImageRect(lua_State* L) {
     SkCanvas* canvas = get_ref<SkCanvas>(L, 1);
     SkImage* image = get_ref<SkImage>(L, 2);
-    if (NULL == image) {
+    if (nullptr == image) {
         return 0;
     }
 
     SkRect srcR, dstR;
-    SkRect* srcRPtr = NULL;
+    SkRect* srcRPtr = nullptr;
     if (!lua_isnil(L, 3)) {
         srcRPtr = lua2rect(L, 3, &srcR);
     }
     lua2rect(L, 4, &dstR);
 
     SkPaint paint;
-    canvas->drawImageRect(image, srcRPtr, dstR, lua2OptionalPaint(L, 5, &paint));
+    canvas->legacy_drawImageRect(image, srcRPtr, dstR, lua2OptionalPaint(L, 5, &paint));
     return 0;
 }
 
@@ -543,8 +545,8 @@ static int lcanvas_drawPatch(lua_State* L) {
     SkColor colorStorage[4];
     SkPoint texStorage[4];
 
-    const SkColor* colors = NULL;
-    const SkPoint* texs = NULL;
+    const SkColor* colors = nullptr;
+    const SkPoint* texs = nullptr;
 
     getarray_points(L, 2, cubics, 12);
 
@@ -560,7 +562,7 @@ static int lcanvas_drawPatch(lua_State* L) {
         texs = texStorage;
     }
 
-    get_ref<SkCanvas>(L, 1)->drawPatch(cubics, colors, texs, NULL, *get_obj<SkPaint>(L, 5));
+    get_ref<SkCanvas>(L, 1)->drawPatch(cubics, colors, texs, nullptr, *get_obj<SkPaint>(L, 5));
     return 0;
 }
 
@@ -576,7 +578,7 @@ static int lcanvas_drawPicture(lua_State* L) {
     SkPicture* picture = get_ref<SkPicture>(L, 2);
     SkScalar x = lua2scalar_def(L, 3, 0);
     SkScalar y = lua2scalar_def(L, 4, 0);
-    SkMatrix matrix, *matrixPtr = NULL;
+    SkMatrix matrix, *matrixPtr = nullptr;
     if (x || y) {
         matrix.setTranslate(x, y);
         matrixPtr = &matrix;
@@ -646,7 +648,7 @@ int SkLua::lcanvas_getReducedClipStack(lua_State* L) {
                                    &genID,
                                    &initialState,
                                    &resultBounds,
-                                   NULL);
+                                   nullptr);
 
     GrReducedClip::ElementList::Iter iter(elements);
     int i = 0;
@@ -671,7 +673,7 @@ static int lcanvas_save(lua_State* L) {
 
 static int lcanvas_saveLayer(lua_State* L) {
     SkPaint paint;
-    lua_pushinteger(L, get_ref<SkCanvas>(L, 1)->saveLayer(NULL, lua2OptionalPaint(L, 2, &paint)));
+    lua_pushinteger(L, get_ref<SkCanvas>(L, 1)->saveLayer(nullptr, lua2OptionalPaint(L, 2, &paint)));
     return 1;
 }
 
@@ -710,7 +712,7 @@ static int lcanvas_newSurface(lua_State* L) {
     int height = lua2int_def(L, 3, 0);
     SkImageInfo info = SkImageInfo::MakeN32Premul(width, height);
     SkSurface* surface = get_ref<SkCanvas>(L, 1)->newSurface(info);
-    if (NULL == surface) {
+    if (nullptr == surface) {
         lua_pushnil(L);
     } else {
         push_ref(L, surface)->unref();
@@ -754,13 +756,13 @@ const struct luaL_Reg gSkCanvas_Methods[] = {
     { "newSurface", lcanvas_newSurface },
 
     { "__gc", lcanvas_gc },
-    { NULL, NULL }
+    { nullptr, nullptr }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 
 static int ldocument_beginPage(lua_State* L) {
-    const SkRect* contentPtr = NULL;
+    const SkRect* contentPtr = nullptr;
     push_ref(L, get_ref<SkDocument>(L, 1)->beginPage(lua2scalar(L, 2),
                                                      lua2scalar(L, 3),
                                                      contentPtr));
@@ -787,7 +789,7 @@ static const struct luaL_Reg gSkDocument_Methods[] = {
     { "endPage", ldocument_endPage },
     { "close", ldocument_close },
     { "__gc", ldocument_gc },
-    { NULL, NULL }
+    { nullptr, nullptr }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1079,6 +1081,22 @@ static int lpaint_getEffects(lua_State* L) {
     return 1;
 }
 
+static int lpaint_getColorFilter(lua_State* L) {
+    const SkPaint* paint = get_obj<SkPaint>(L, 1);
+    SkColorFilter* cf = paint->getColorFilter();
+    if (cf) {
+        push_ref(L, cf);
+        return 1;
+    }
+    return 0;
+}
+
+static int lpaint_setColorFilter(lua_State* L) {
+    SkPaint* paint = get_obj<SkPaint>(L, 1);
+    paint->setColorFilter(get_ref<SkColorFilter>(L, 2));
+    return 0;
+}
+
 static int lpaint_getImageFilter(lua_State* L) {
     const SkPaint* paint = get_obj<SkPaint>(L, 1);
     SkImageFilter* imf = paint->getImageFilter();
@@ -1170,13 +1188,15 @@ static const struct luaL_Reg gSkPaint_Methods[] = {
     { "measureText", lpaint_measureText },
     { "getFontMetrics", lpaint_getFontMetrics },
     { "getEffects", lpaint_getEffects },
+    { "getColorFilter", lpaint_getColorFilter },
+    { "setColorFilter", lpaint_setColorFilter },
     { "getImageFilter", lpaint_getImageFilter },
     { "setImageFilter", lpaint_setImageFilter },
     { "getShader", lpaint_getShader },
     { "setShader", lpaint_setShader },
     { "getPathEffect", lpaint_getPathEffect },
     { "__gc", lpaint_gc },
-    { NULL, NULL }
+    { nullptr, nullptr }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1200,23 +1220,20 @@ static int lshader_isOpaque(lua_State* L) {
     return shader && shader->isOpaque();
 }
 
-static int lshader_asABitmap(lua_State* L) {
+static int lshader_isABitmap(lua_State* L) {
     SkShader* shader = get_ref<SkShader>(L, 1);
     if (shader) {
         SkBitmap bm;
         SkMatrix matrix;
         SkShader::TileMode modes[2];
-        switch (shader->asABitmap(&bm, &matrix, modes)) {
-            case SkShader::kDefault_BitmapType:
-                lua_newtable(L);
-                setfield_number(L, "genID", bm.pixelRef() ? bm.pixelRef()->getGenerationID() : 0);
-                setfield_number(L, "width", bm.width());
-                setfield_number(L, "height", bm.height());
-                setfield_string(L, "tileX", mode2string(modes[0]));
-                setfield_string(L, "tileY", mode2string(modes[1]));
-                return 1;
-            default:
-                break;
+        if (shader->isABitmap(&bm, &matrix, modes)) {
+            lua_newtable(L);
+            setfield_number(L, "genID", bm.pixelRef() ? bm.pixelRef()->getGenerationID() : 0);
+            setfield_number(L, "width", bm.width());
+            setfield_number(L, "height", bm.height());
+            setfield_string(L, "tileX", mode2string(modes[0]));
+            setfield_string(L, "tileY", mode2string(modes[1]));
+            return 1;
         }
     }
     return 0;
@@ -1260,10 +1277,10 @@ static int lshader_gc(lua_State* L) {
 
 static const struct luaL_Reg gSkShader_Methods[] = {
     { "isOpaque",       lshader_isOpaque },
-    { "asABitmap",      lshader_asABitmap },
+    { "isABitmap",      lshader_isABitmap },
     { "asAGradient",    lshader_asAGradient },
     { "__gc",           lshader_gc },
-    { NULL, NULL }
+    { nullptr, nullptr }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1292,7 +1309,19 @@ static int lpatheffect_gc(lua_State* L) {
 static const struct luaL_Reg gSkPathEffect_Methods[] = {
     { "asADash",        lpatheffect_asADash },
     { "__gc",           lpatheffect_gc },
-    { NULL, NULL }
+    { nullptr, nullptr }
+};
+
+///////////////////////////////////////////////////////////////////////////////
+
+static int lpcolorfilter_gc(lua_State* L) {
+    get_ref<SkColorFilter>(L, 1)->unref();
+    return 0;
+}
+
+static const struct luaL_Reg gSkColorFilter_Methods[] = {
+    { "__gc",       lpcolorfilter_gc },
+    { nullptr, nullptr }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1304,7 +1333,7 @@ static int lpimagefilter_gc(lua_State* L) {
 
 static const struct luaL_Reg gSkImageFilter_Methods[] = {
     { "__gc",       lpimagefilter_gc },
-    { NULL, NULL }
+    { nullptr, nullptr }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1393,7 +1422,7 @@ static const struct luaL_Reg gSkMatrix_Methods[] = {
     { "setRectToRect", lmatrix_setRectToRect },
     { "invert", lmatrix_invert },
     { "mapXY", lmatrix_mapXY },
-    { NULL, NULL }
+    { nullptr, nullptr }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1571,7 +1600,7 @@ static const struct luaL_Reg gSkPath_Methods[] = {
     { "cubicTo", lpath_cubicTo },
     { "close", lpath_close },
     { "__gc", lpath_gc },
-    { NULL, NULL }
+    { nullptr, nullptr }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1623,7 +1652,7 @@ static const struct luaL_Reg gSkRRect_Methods[] = {
     { "type", lrrect_type },
     { "radii", lrrect_radii },
     { "__gc", lrrect_gc },
-    { NULL, NULL }
+    { nullptr, nullptr }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1640,7 +1669,7 @@ static int limage_height(lua_State* L) {
 
 static int limage_newShader(lua_State* L) {
     SkShader::TileMode tmode = SkShader::kClamp_TileMode;
-    const SkMatrix* localM = NULL;
+    const SkMatrix* localM = nullptr;
     SkAutoTUnref<SkShader> shader(get_ref<SkImage>(L, 1)->newShader(tmode, tmode, localM));
     push_ref(L, shader.get());
     return 1;
@@ -1656,7 +1685,7 @@ static const struct luaL_Reg gSkImage_Methods[] = {
     { "height", limage_height },
     { "newShader", limage_newShader },
     { "__gc", limage_gc },
-    { NULL, NULL }
+    { nullptr, nullptr }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1673,7 +1702,7 @@ static int lsurface_height(lua_State* L) {
 
 static int lsurface_getCanvas(lua_State* L) {
     SkCanvas* canvas = get_ref<SkSurface>(L, 1)->getCanvas();
-    if (NULL == canvas) {
+    if (nullptr == canvas) {
         lua_pushnil(L);
     } else {
         push_ref(L, canvas);
@@ -1688,7 +1717,7 @@ static int lsurface_getCanvas(lua_State* L) {
 
 static int lsurface_newImageSnapshot(lua_State* L) {
     SkImage* image = get_ref<SkSurface>(L, 1)->newImageSnapshot();
-    if (NULL == image) {
+    if (nullptr == image) {
         lua_pushnil(L);
     } else {
         push_ref(L, image)->unref();
@@ -1701,7 +1730,7 @@ static int lsurface_newSurface(lua_State* L) {
     int height = lua2int_def(L, 3, 0);
     SkImageInfo info = SkImageInfo::MakeN32Premul(width, height);
     SkSurface* surface = get_ref<SkSurface>(L, 1)->newSurface(info);
-    if (NULL == surface) {
+    if (nullptr == surface) {
         lua_pushnil(L);
     } else {
         push_ref(L, surface)->unref();
@@ -1721,7 +1750,7 @@ static const struct luaL_Reg gSkSurface_Methods[] = {
     { "newImageSnapshot", lsurface_newImageSnapshot },
     { "newSurface", lsurface_newSurface },
     { "__gc", lsurface_gc },
-    { NULL, NULL }
+    { nullptr, nullptr }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1735,7 +1764,7 @@ static int lpicturerecorder_beginRecording(lua_State* L) {
     }
 
     SkCanvas* canvas = get_obj<SkPictureRecorder>(L, 1)->beginRecording(w, h);
-    if (NULL == canvas) {
+    if (nullptr == canvas) {
         lua_pushnil(L);
         return 1;
     }
@@ -1746,7 +1775,7 @@ static int lpicturerecorder_beginRecording(lua_State* L) {
 
 static int lpicturerecorder_getCanvas(lua_State* L) {
     SkCanvas* canvas = get_obj<SkPictureRecorder>(L, 1)->getRecordingCanvas();
-    if (NULL == canvas) {
+    if (nullptr == canvas) {
         lua_pushnil(L);
         return 1;
     }
@@ -1756,7 +1785,7 @@ static int lpicturerecorder_getCanvas(lua_State* L) {
 
 static int lpicturerecorder_endRecording(lua_State* L) {
     SkPicture* pic = get_obj<SkPictureRecorder>(L, 1)->endRecording();
-    if (NULL == pic) {
+    if (nullptr == pic) {
         lua_pushnil(L);
         return 1;
     }
@@ -1774,7 +1803,7 @@ static const struct luaL_Reg gSkPictureRecorder_Methods[] = {
     { "getCanvas", lpicturerecorder_getCanvas },
     { "endRecording", lpicturerecorder_endRecording },
     { "__gc", lpicturerecorder_gc },
-    { NULL, NULL }
+    { nullptr, nullptr }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1798,7 +1827,7 @@ static const struct luaL_Reg gSkPicture_Methods[] = {
     { "width", lpicture_width },
     { "height", lpicture_height },
     { "__gc", lpicture_gc },
-    { NULL, NULL }
+    { nullptr, nullptr }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1816,7 +1845,7 @@ static int ltextblob_gc(lua_State* L) {
 static const struct luaL_Reg gSkTextBlob_Methods[] = {
     { "bounds", ltextblob_bounds },
     { "__gc", ltextblob_gc },
-    { NULL, NULL }
+    { nullptr, nullptr }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1842,7 +1871,7 @@ static const struct luaL_Reg gSkTypeface_Methods[] = {
     { "getFamilyName", ltypeface_getFamilyName },
     { "getStyle", ltypeface_getStyle },
     { "__gc", ltypeface_gc },
-    { NULL, NULL }
+    { nullptr, nullptr }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1876,13 +1905,13 @@ private:
 ///////////////////////////////////////////////////////////////////////////////
 
 static int lsk_newDocumentPDF(lua_State* L) {
-    const char* file = NULL;
+    const char* file = nullptr;
     if (lua_gettop(L) > 0 && lua_isstring(L, 1)) {
-        file = lua_tolstring(L, 1, NULL);
+        file = lua_tolstring(L, 1, nullptr);
     }
 
     SkDocument* doc = SkDocument::CreatePDF(file);
-    if (NULL == doc) {
+    if (nullptr == doc) {
         // do I need to push a nil on the stack and return 1?
         return 0;
     } else {
@@ -1895,7 +1924,7 @@ static int lsk_newBlurImageFilter(lua_State* L) {
     SkScalar sigmaX = lua2scalar_def(L, 1, 0);
     SkScalar sigmaY = lua2scalar_def(L, 2, 0);
     SkImageFilter* imf = SkBlurImageFilter::Create(sigmaX, sigmaY);
-    if (NULL == imf) {
+    if (nullptr == imf) {
         lua_pushnil(L);
     } else {
         push_ref(L, imf)->unref();
@@ -1913,8 +1942,8 @@ static int lsk_newLinearGradient(lua_State* L) {
 
     SkPoint pts[] = { { x0, y0 }, { x1, y1 } };
     SkColor colors[] = { c0, c1 };
-    SkShader* s = SkGradientShader::CreateLinear(pts, colors, NULL, 2, SkShader::kClamp_TileMode);
-    if (NULL == s) {
+    SkShader* s = SkGradientShader::CreateLinear(pts, colors, nullptr, 2, SkShader::kClamp_TileMode);
+    if (nullptr == s) {
         lua_pushnil(L);
     } else {
         push_ref(L, s)->unref();
@@ -1950,7 +1979,7 @@ static int lsk_newRRect(lua_State* L) {
 #include "SkTextBox.h"
 // Sk.newTextBlob(text, rect, paint)
 static int lsk_newTextBlob(lua_State* L) {
-    const char* text = lua_tolstring(L, 1, NULL);
+    const char* text = lua_tolstring(L, 1, nullptr);
     SkRect bounds;
     lua2rect(L, 2, &bounds);
     const SkPaint& paint = *get_obj<SkPaint>(L, 3);
@@ -1968,21 +1997,21 @@ static int lsk_newTextBlob(lua_State* L) {
 }
 
 static int lsk_newTypeface(lua_State* L) {
-    const char* name = NULL;
+    const char* name = nullptr;
     int style = SkTypeface::kNormal;
 
     int count = lua_gettop(L);
     if (count > 0 && lua_isstring(L, 1)) {
-        name = lua_tolstring(L, 1, NULL);
+        name = lua_tolstring(L, 1, nullptr);
         if (count > 1 && lua_isnumber(L, 2)) {
-            style = lua_tointegerx(L, 2, NULL) & SkTypeface::kBoldItalic;
+            style = lua_tointegerx(L, 2, nullptr) & SkTypeface::kBoldItalic;
         }
     }
 
     SkTypeface* face = SkTypeface::CreateFromName(name,
                                                   (SkTypeface::Style)style);
 //    SkDebugf("---- name <%s> style=%d, face=%p ref=%d\n", name, style, face, face->getRefCnt());
-    if (NULL == face) {
+    if (nullptr == face) {
         face = SkTypeface::RefDefault();
     }
     push_ref(L, face)->unref();
@@ -1995,7 +2024,7 @@ static int lsk_newRasterSurface(lua_State* L) {
     SkImageInfo info = SkImageInfo::MakeN32Premul(width, height);
     SkSurfaceProps props(0, kUnknown_SkPixelGeometry);
     SkSurface* surface = SkSurface::NewRaster(info, &props);
-    if (NULL == surface) {
+    if (nullptr == surface) {
         lua_pushnil(L);
     } else {
         push_ref(L, surface)->unref();
@@ -2005,7 +2034,7 @@ static int lsk_newRasterSurface(lua_State* L) {
 
 static int lsk_loadImage(lua_State* L) {
     if (lua_gettop(L) > 0 && lua_isstring(L, 1)) {
-        const char* name = lua_tolstring(L, 1, NULL);
+        const char* name = lua_tolstring(L, 1, nullptr);
         SkAutoDataUnref data(SkData::NewFromFileName(name));
         if (data.get()) {
             SkImage* image = SkImage::NewFromEncoded(data);
@@ -2051,6 +2080,7 @@ static void register_Sk(lua_State* L) {
 void SkLua::Load(lua_State* L) {
     register_Sk(L);
     REG_CLASS(L, SkCanvas);
+    REG_CLASS(L, SkColorFilter);
     REG_CLASS(L, SkDocument);
     REG_CLASS(L, SkImage);
     REG_CLASS(L, SkImageFilter);

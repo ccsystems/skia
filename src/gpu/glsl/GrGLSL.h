@@ -11,6 +11,8 @@
 #include "GrTypesPriv.h"
 #include "SkString.h"
 
+class GrGLSLCaps;
+
 // Limited set of GLSL versions we build shaders for. Caller should round
 // down the GLSL version to one of these enums.
 enum GrGLSLGeneration {
@@ -56,6 +58,13 @@ inline const char* GrGLSLTexture2DFunctionName(GrSLType coordType, GrGLSLGenerat
 }
 
 /**
+ * Adds a line of GLSL code to declare the default precision for float types.
+ */
+void GrGLSLAppendDefaultFloatPrecisionDeclaration(GrSLPrecision,
+                                                  const GrGLSLCaps& glslCaps,
+                                                  SkString* out);
+
+/**
  * Converts a GrSLType to a string containing the name of the equivalent GLSL type.
  */
 static inline const char* GrGLSLTypeString(GrSLType t) {
@@ -76,6 +85,8 @@ static inline const char* GrGLSLTypeString(GrSLType t) {
             return "mat4";
         case kSampler2D_GrSLType:
             return "sampler2D";
+        case kSamplerExternal_GrSLType:
+            return "samplerExternalOES";
         default:
             SkFAIL("Unknown shader var type.");
             return ""; // suppress warning
@@ -135,7 +146,7 @@ protected:
      * Argument expr is a simple expression or a parenthesized expression. */
     // TODO: make explicit once effects input Exprs.
     GrGLSLExpr(const char expr[]) {
-        if (NULL == expr) {  // TODO: remove this once effects input Exprs.
+        if (nullptr == expr) {  // TODO: remove this once effects input Exprs.
             fType = kOnes_ExprType;
         } else {
             fType = kFullExpr_ExprType;

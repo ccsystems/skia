@@ -36,9 +36,8 @@ public:
 
         Note: only affects stroked paths.
     */
-    static SkDashPathEffect* Create(const SkScalar intervals[], int count,
-                                    SkScalar phase) {
-        return SkNEW_ARGS(SkDashPathEffect, (intervals, count, phase));
+    static SkPathEffect* Create(const SkScalar intervals[], int count, SkScalar phase) {
+        return new SkDashPathEffect(intervals, count, phase);
     }
     virtual ~SkDashPathEffect();
 

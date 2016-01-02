@@ -5,28 +5,45 @@
  * found in the LICENSE file.
  */
 
+#include "SkTypes.h"
+
 #if SK_SUPPORT_GPU
 
 #include "GrContextFactory.h"
+#include "GrCaps.h"
 #include "Test.h"
 
-DEF_GPUTEST(GrContextFactory, reporter, factory) {
-    // Reset in case some other test has been using it first.
-    factory->destroyContexts();
+DEF_GPUTEST(GrContextFactory_NVPRContextOptionHasPathRenderingSupport, reporter, /*factory*/) {
+    // Test that if NVPR is requested, the context always has path rendering
+    // or the context creation fails.
+    GrContextFactory testFactory;
+    // Test that if NVPR is possible, caps are in sync.
+    for (int i = 0; i < GrContextFactory::kGLContextTypeCnt; ++i) {
+        GrContextFactory::GLContextType glCtxType = static_cast<GrContextFactory::GLContextType>(i);
+        GrContext* context = testFactory.get(glCtxType,
+                                             GrContextFactory::kEnableNVPR_GLContextOptions);
+        if (!context) {
+            continue;
+        }
+        REPORTER_ASSERT(
+            reporter,
+            context->caps()->shaderCaps()->pathRenderingSupport());
+    }
+}
 
-    // Before we ask for a context, we expect the GL context to not be there.
-    REPORTER_ASSERT(reporter,
-                    NULL == factory->getGLContext(GrContextFactory::kNull_GLContextType));
+DEF_GPUTEST(GrContextFactory_NoPathRenderingUnlessNVPRRequested, reporter, /*factory*/) {
+    // Test that if NVPR is not requested, the context never has path rendering support.
 
-    // After we ask for a context, we expect that the GL context to be there.
-    factory->get(GrContextFactory::kNull_GLContextType);
-    REPORTER_ASSERT(reporter,
-                    factory->getGLContext(GrContextFactory::kNull_GLContextType) != NULL);
-
-    // If we did not ask for a context with the particular GL context, we would
-    // expect the particular GL context to not be there.
-    REPORTER_ASSERT(reporter,
-                    NULL == factory->getGLContext(GrContextFactory::kDebug_GLContextType));
+    GrContextFactory testFactory;
+    for (int i = 0; i <= GrContextFactory::kLastGLContextType; ++i) {
+        GrContextFactory::GLContextType glCtxType = (GrContextFactory::GLContextType)i;
+        GrContext* context = testFactory.get(glCtxType);
+        if (context) {
+            REPORTER_ASSERT(
+                reporter,
+                !context->caps()->shaderCaps()->pathRenderingSupport());
+        }
+    }
 }
 
 #endif

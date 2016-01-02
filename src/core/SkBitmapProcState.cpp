@@ -24,20 +24,36 @@
 extern const SkBitmapProcState::SampleProc16 gSkBitmapProcStateSample16_neon[];
 extern const SkBitmapProcState::SampleProc32 gSkBitmapProcStateSample32_neon[];
 extern void  S16_D16_filter_DX_neon(const SkBitmapProcState&, const uint32_t*, int, uint16_t*);
-extern void  Clamp_S16_D16_filter_DX_shaderproc_neon(const SkBitmapProcState&, int, int, uint16_t*, int);
-extern void  Repeat_S16_D16_filter_DX_shaderproc_neon(const SkBitmapProcState&, int, int, uint16_t*, int);
+extern void  Clamp_S16_D16_filter_DX_shaderproc_neon(const void *, int, int, uint16_t*, int);
+extern void  Repeat_S16_D16_filter_DX_shaderproc_neon(const void *, int, int, uint16_t*, int);
 extern void  SI8_opaque_D32_filter_DX_neon(const SkBitmapProcState&, const uint32_t*, int, SkPMColor*);
-extern void  SI8_opaque_D32_filter_DX_shaderproc_neon(const SkBitmapProcState&, int, int, uint32_t*, int);
-extern void  Clamp_SI8_opaque_D32_filter_DX_shaderproc_neon(const SkBitmapProcState&, int, int, uint32_t*, int);
+extern void  SI8_opaque_D32_filter_DX_shaderproc_neon(const void *, int, int, uint32_t*, int);
+extern void  Clamp_SI8_opaque_D32_filter_DX_shaderproc_neon(const void*, int, int, uint32_t*, int);
 #endif
 
-extern void Clamp_S32_opaque_D32_nofilter_DX_shaderproc(const SkBitmapProcState&, int, int, uint32_t*, int);
+extern void Clamp_S32_opaque_D32_nofilter_DX_shaderproc(const void*, int, int, uint32_t*, int);
 
 #define   NAME_WRAP(x)  x
 #include "SkBitmapProcState_filter.h"
 #include "SkBitmapProcState_procs.h"
 
-SkBitmapProcState::SkBitmapProcState() : fBMState(NULL) {}
+SkBitmapProcState::SkBitmapProcState(const SkBitmapProvider& provider,
+                                     SkShader::TileMode tmx, SkShader::TileMode tmy)
+    : fProvider(provider)
+    , fBMState(nullptr)
+{
+    fTileModeX = tmx;
+    fTileModeY = tmy;
+}
+
+SkBitmapProcState::SkBitmapProcState(const SkBitmap& bm,
+                                     SkShader::TileMode tmx, SkShader::TileMode tmy)
+    : fProvider(SkBitmapProvider(bm))
+    , fBMState(nullptr)
+{
+    fTileModeX = tmx;
+    fTileModeY = tmy;
+}
 
 SkBitmapProcState::~SkBitmapProcState() {
     SkInPlaceDeleteCheck(fBMState, fBMStateStorage.get());
@@ -119,10 +135,10 @@ bool SkBitmapProcState::chooseProcs(const SkMatrix& inv, const SkPaint& paint) {
     fFilterLevel = paint.getFilterQuality();
 
     SkDefaultBitmapController controller;
-    fBMState = controller.requestBitmap(fOrigBitmap, inv, paint.getFilterQuality(),
+    fBMState = controller.requestBitmap(fProvider, inv, paint.getFilterQuality(),
                                         fBMStateStorage.get(), fBMStateStorage.size());
     // Note : we allow the controller to return an empty (zero-dimension) result. Should we?
-    if (NULL == fBMState || fBMState->pixmap().info().isEmpty()) {
+    if (nullptr == fBMState || fBMState->pixmap().info().isEmpty()) {
         return false;
     }
     fPixmap = fBMState->pixmap();
@@ -174,10 +190,10 @@ bool SkBitmapProcState::chooseProcs(const SkMatrix& inv, const SkPaint& paint) {
 
     fAlphaScale = SkAlpha255To256(paint.getAlpha());
 
-    fShaderProc32 = NULL;
-    fShaderProc16 = NULL;
-    fSampleProc32 = NULL;
-    fSampleProc16 = NULL;
+    fShaderProc32 = nullptr;
+    fShaderProc16 = nullptr;
+    fSampleProc32 = nullptr;
+    fSampleProc16 = nullptr;
 
     // recompute the triviality of the matrix here because we may have
     // changed it!
@@ -201,8 +217,8 @@ bool SkBitmapProcState::chooseProcs(const SkMatrix& inv, const SkPaint& paint) {
 bool SkBitmapProcState::chooseScanlineProcs(bool trivialMatrix, bool clampClamp,
                                             const SkPaint& paint) {
     fMatrixProc = this->chooseMatrixProc(trivialMatrix);
-    // TODO(dominikg): SkASSERT(fMatrixProc) instead? chooseMatrixProc never returns NULL.
-    if (NULL == fMatrixProc) {
+    // TODO(dominikg): SkASSERT(fMatrixProc) instead? chooseMatrixProc never returns nullptr.
+    if (nullptr == fMatrixProc) {
         return false;
     }
 
@@ -338,11 +354,11 @@ bool SkBitmapProcState::chooseScanlineProcs(bool trivialMatrix, bool clampClamp,
             SI8_D16_filter_DX,
 
             // Don't support 4444 -> 565
-            NULL, NULL, NULL, NULL,
+            nullptr, nullptr, nullptr, nullptr,
             // Don't support A8 -> 565
-            NULL, NULL, NULL, NULL,
+            nullptr, nullptr, nullptr, nullptr,
             // Don't support G8 -> 565 (but we could)
-            NULL, NULL, NULL, NULL
+            nullptr, nullptr, nullptr, nullptr
         };
 #endif
 
@@ -364,7 +380,7 @@ bool SkBitmapProcState::chooseScanlineProcs(bool trivialMatrix, bool clampClamp,
             fShaderProc32 = Clamp_S32_opaque_D32_nofilter_DX_shaderproc;
         }
 
-        if (NULL == fShaderProc32) {
+        if (nullptr == fShaderProc32) {
             fShaderProc32 = this->chooseShaderProc32();
         }
     }
@@ -375,13 +391,14 @@ bool SkBitmapProcState::chooseScanlineProcs(bool trivialMatrix, bool clampClamp,
     return true;
 }
 
-static void Clamp_S32_D32_nofilter_trans_shaderproc(const SkBitmapProcState& s,
+static void Clamp_S32_D32_nofilter_trans_shaderproc(const void* sIn,
                                                     int x, int y,
                                                     SkPMColor* SK_RESTRICT colors,
                                                     int count) {
+    const SkBitmapProcState& s = *static_cast<const SkBitmapProcState*>(sIn);
     SkASSERT(((s.fInvType & ~SkMatrix::kTranslate_Mask)) == 0);
     SkASSERT(s.fInvKy == 0);
-    SkASSERT(count > 0 && colors != NULL);
+    SkASSERT(count > 0 && colors != nullptr);
     SkASSERT(kNone_SkFilterQuality == s.fFilterLevel);
 
     const int maxX = s.fPixmap.width() - 1;
@@ -449,13 +466,14 @@ static inline int sk_int_mirror(int x, int n) {
     return x;
 }
 
-static void Repeat_S32_D32_nofilter_trans_shaderproc(const SkBitmapProcState& s,
+static void Repeat_S32_D32_nofilter_trans_shaderproc(const void* sIn,
                                                      int x, int y,
                                                      SkPMColor* SK_RESTRICT colors,
                                                      int count) {
+    const SkBitmapProcState& s = *static_cast<const SkBitmapProcState*>(sIn);
     SkASSERT(((s.fInvType & ~SkMatrix::kTranslate_Mask)) == 0);
     SkASSERT(s.fInvKy == 0);
-    SkASSERT(count > 0 && colors != NULL);
+    SkASSERT(count > 0 && colors != nullptr);
     SkASSERT(kNone_SkFilterQuality == s.fFilterLevel);
 
     const int stopX = s.fPixmap.width();
@@ -489,13 +507,14 @@ static void Repeat_S32_D32_nofilter_trans_shaderproc(const SkBitmapProcState& s,
     }
 }
 
-static void S32_D32_constX_shaderproc(const SkBitmapProcState& s,
+static void S32_D32_constX_shaderproc(const void* sIn,
                                       int x, int y,
                                       SkPMColor* SK_RESTRICT colors,
                                       int count) {
+    const SkBitmapProcState& s = *static_cast<const SkBitmapProcState*>(sIn);
     SkASSERT((s.fInvType & ~(SkMatrix::kTranslate_Mask | SkMatrix::kScale_Mask)) == 0);
     SkASSERT(s.fInvKy == 0);
-    SkASSERT(count > 0 && colors != NULL);
+    SkASSERT(count > 0 && colors != nullptr);
     SkASSERT(1 == s.fPixmap.width());
 
     int iY0;
@@ -602,7 +621,7 @@ static void S32_D32_constX_shaderproc(const SkBitmapProcState& s,
     sk_memset32(colors, color, count);
 }
 
-static void DoNothing_shaderproc(const SkBitmapProcState&, int x, int y,
+static void DoNothing_shaderproc(const void*, int x, int y,
                                  SkPMColor* SK_RESTRICT colors, int count) {
     // if we get called, the matrix is too tricky, so we just draw nothing
     sk_memset32(colors, 0, count);
@@ -633,7 +652,7 @@ bool SkBitmapProcState::setupForTranslate() {
 SkBitmapProcState::ShaderProc32 SkBitmapProcState::chooseShaderProc32() {
 
     if (kN32_SkColorType != fPixmap.colorType()) {
-        return NULL;
+        return nullptr;
     }
 
     static const unsigned kMask = SkMatrix::kTranslate_Mask | SkMatrix::kScale_Mask;
@@ -648,13 +667,13 @@ SkBitmapProcState::ShaderProc32 SkBitmapProcState::chooseShaderProc32() {
     }
 
     if (fAlphaScale < 256) {
-        return NULL;
+        return nullptr;
     }
     if (fInvType > SkMatrix::kTranslate_Mask) {
-        return NULL;
+        return nullptr;
     }
     if (kNone_SkFilterQuality != fFilterLevel) {
-        return NULL;
+        return nullptr;
     }
 
     SkShader::TileMode tx = (SkShader::TileMode)fTileModeX;
@@ -672,7 +691,7 @@ SkBitmapProcState::ShaderProc32 SkBitmapProcState::chooseShaderProc32() {
         }
         return DoNothing_shaderproc;
     }
-    return NULL;
+    return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -795,8 +814,9 @@ int SkBitmapProcState::maxCountForBufferSize(size_t bufferSize) const {
 
 ///////////////////////
 
-void  Clamp_S32_opaque_D32_nofilter_DX_shaderproc(const SkBitmapProcState& s, int x, int y,
+void  Clamp_S32_opaque_D32_nofilter_DX_shaderproc(const void* sIn, int x, int y,
                                                   SkPMColor* SK_RESTRICT dst, int count) {
+    const SkBitmapProcState& s = *static_cast<const SkBitmapProcState*>(sIn);
     SkASSERT((s.fInvType & ~(SkMatrix::kTranslate_Mask |
                              SkMatrix::kScale_Mask)) == 0);
 
@@ -807,10 +827,12 @@ void  Clamp_S32_opaque_D32_nofilter_DX_shaderproc(const SkBitmapProcState& s, in
         SkPoint pt;
         s.fInvProc(s.fInvMatrix, SkIntToScalar(x) + SK_ScalarHalf, SkIntToScalar(y) + SK_ScalarHalf,
                    &pt);
-        fx = SkScalarToFractionalInt(pt.fY);
+        fx = SkScalarToFractionalInt(pt.fY)
+            + bitmap_sampler_inv_bias(s.fInvMatrix.getScaleY());
         const unsigned maxY = s.fPixmap.height() - 1;
         dstY = SkClampMax(SkFractionalIntToInt(fx), maxY);
-        fx = SkScalarToFractionalInt(pt.fX);
+        fx = SkScalarToFractionalInt(pt.fX)
+            + bitmap_sampler_inv_bias(s.fInvMatrix.getScaleX());
     }
 
     const SkPMColor* SK_RESTRICT src = s.fPixmap.addr32(0, dstY);

@@ -11,8 +11,6 @@
 #include "SkTextFormatParams.h"
 #include "SkTypeface.h"
 
-namespace skiagm {
-
 /* Generated on a Mac with:
  * paint.setTypeface(SkTypeface::CreateByName("Papyrus"));
  * paint.getTextPath("H", 1, 100, 80, &textPath);
@@ -228,31 +226,15 @@ static SkPath hiragino_maru_gothic_pro_dash() {
     return path;
 }
 
-class StrokeFillGM : public GM {
-public:
-    StrokeFillGM() {
-
-    }
-
-protected:
-
-    SkString onShortName() override {
-        return SkString("stroke-fill");
-    }
-
-    SkISize onISize() override {
-        return SkISize::Make(640, 480);
-    }
-
-    static void show_bold(SkCanvas* canvas, const void* text, int len,
-                          SkScalar x, SkScalar y, const SkPaint& paint) {
+static void show_bold(SkCanvas* canvas, const void* text, int len,
+                      SkScalar x, SkScalar y, const SkPaint& paint) {
         SkPaint p(paint);
         canvas->drawText(text, len, x, y, p);
         p.setFakeBoldText(true);
         canvas->drawText(text, len, x, y + SkIntToScalar(120), p);
-    }
-    
-    static void path_bold(SkCanvas* canvas, const SkPath& path, const SkPaint& paint) {
+}
+
+static void path_bold(SkCanvas* canvas, const SkPath& path, const SkPaint& paint) {
         SkPaint p(paint);
         canvas->drawPath(path, p);
         p.setStyle(SkPaint::kStrokeAndFill_Style);
@@ -265,9 +247,10 @@ protected:
         canvas->translate(0, 120);
         canvas->drawPath(path, p);
         canvas->restore();
-    }
-    
-    void onDraw(SkCanvas* canvas) override {
+}
+
+DEF_SIMPLE_GM_BG_NAME(strokefill, canvas, 640, 480, SK_ColorWHITE,
+                      SkString("stroke-fill")) {
         SkScalar x = SkIntToScalar(100);
         SkScalar y = SkIntToScalar(88);
 
@@ -307,7 +290,7 @@ protected:
         SkASSERT(SkPathPriv::CheapIsFirstDirection(path2, SkPathPriv::kCCW_FirstDirection));
 
         path2.reset();
-        SkASSERT(!SkPathPriv::CheapComputeFirstDirection(path2, NULL));
+        SkASSERT(!SkPathPriv::CheapComputeFirstDirection(path2, nullptr));
         path2.addCircle(x + SkIntToScalar(360), y + SkIntToScalar(200), SkIntToScalar(50), SkPath::kCW_Direction);
         SkASSERT(SkPathPriv::CheapIsFirstDirection(path2, SkPathPriv::kCW_FirstDirection));
         canvas->drawPath(path2, paint);
@@ -333,7 +316,7 @@ protected:
         r = SkRect::MakeXYWH(x + SkIntToScalar(190), y + SkIntToScalar(280), 
                              SkIntToScalar(100), SkIntToScalar(100));
         path4.reset();
-        SkASSERT(!SkPathPriv::CheapComputeFirstDirection(path4, NULL));
+        SkASSERT(!SkPathPriv::CheapComputeFirstDirection(path4, nullptr));
         path4.addRect(r, SkPath::kCCW_Direction);
         SkASSERT(SkPathPriv::CheapIsFirstDirection(path4, SkPathPriv::kCCW_FirstDirection));
         path4.moveTo(0, 0); // test for crbug.com/247770
@@ -342,19 +325,9 @@ protected:
         r = SkRect::MakeXYWH(x + SkIntToScalar(310), y + SkIntToScalar(280), 
                              SkIntToScalar(100), SkIntToScalar(100));
         path4.reset();
-        SkASSERT(!SkPathPriv::CheapComputeFirstDirection(path4, NULL));
+        SkASSERT(!SkPathPriv::CheapComputeFirstDirection(path4, nullptr));
         path4.addRect(r, SkPath::kCW_Direction);
         SkASSERT(SkPathPriv::CheapIsFirstDirection(path4, SkPathPriv::kCW_FirstDirection));
         path4.moveTo(0, 0); // test for crbug.com/247770
         canvas->drawPath(path4, paint);
-    }
-
-private:
-    typedef GM INHERITED;
-};
-
-//////////////////////////////////////////////////////////////////////////////
-
-DEF_GM(return SkNEW(StrokeFillGM);)
-
 }

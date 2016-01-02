@@ -16,21 +16,20 @@
 #include "SkShader.h"
 #include "SkValidationUtils.h"
 
-SkTileImageFilter* SkTileImageFilter::Create(const SkRect& srcRect, const SkRect& dstRect,
-                                             SkImageFilter* input) {
+SkImageFilter* SkTileImageFilter::Create(const SkRect& srcRect, const SkRect& dstRect,
+                                         SkImageFilter* input) {
     if (!SkIsValidRect(srcRect) || !SkIsValidRect(dstRect)) {
-        return NULL;
+        return nullptr;
     }
-    return SkNEW_ARGS(SkTileImageFilter, (srcRect, dstRect, input));
+    return new SkTileImageFilter(srcRect, dstRect, input);
 }
 
 bool SkTileImageFilter::onFilterImage(Proxy* proxy, const SkBitmap& src,
                                       const Context& ctx,
                                       SkBitmap* dst, SkIPoint* offset) const {
     SkBitmap source = src;
-    SkImageFilter* input = getInput(0);
     SkIPoint srcOffset = SkIPoint::Make(0, 0);
-    if (input && !input->filterImage(proxy, src, ctx, &source, &srcOffset)) {
+    if (!this->filterInput(0, proxy, src, ctx, &source, &srcOffset)) {
         return false;
     }
 
@@ -60,7 +59,7 @@ bool SkTileImageFilter::onFilterImage(Proxy* proxy, const SkBitmap& src,
     }
 
     SkAutoTUnref<SkBaseDevice> device(proxy->createDevice(w, h));
-    if (NULL == device.get()) {
+    if (nullptr == device.get()) {
         return false;
     }
     SkCanvas canvas(device);
@@ -82,21 +81,30 @@ bool SkTileImageFilter::onFilterImage(Proxy* proxy, const SkBitmap& src,
     return true;
 }
 
+void SkTileImageFilter::onFilterNodeBounds(const SkIRect& src, const SkMatrix& ctm,
+                                          SkIRect* dst, MapDirection direction) const {
+    SkRect rect = kReverse_MapDirection == direction ? fSrcRect : fDstRect;
+    ctm.mapRect(&rect);
+    rect.roundOut(dst);
+#ifdef SK_SUPPORT_SRC_BOUNDS_BLOAT_FOR_IMAGEFILTERS
+    dst->join(src);
+#endif
+}
+
 bool SkTileImageFilter::onFilterBounds(const SkIRect& src, const SkMatrix& ctm,
                                        SkIRect* dst) const {
-    SkRect srcRect;
-    ctm.mapRect(&srcRect, fSrcRect);
-    SkIRect srcIRect;
-    srcRect.roundOut(&srcIRect);
-    srcIRect.join(src);
-    *dst = srcIRect;
+    this->onFilterNodeBounds(src, ctm, dst, kReverse_MapDirection);
     return true;
 }
 
 void SkTileImageFilter::computeFastBounds(const SkRect& src, SkRect* dst) const {
+#ifdef SK_SUPPORT_SRC_BOUNDS_BLOAT_FOR_IMAGEFILTERS
     // This is a workaround for skia:3194.
     *dst = src;
     dst->join(fDstRect);
+#else
+    *dst = fDstRect;
+#endif
 }
 
 SkFlattenable* SkTileImageFilter::CreateProc(SkReadBuffer& buffer) {

@@ -12,10 +12,11 @@
 
 #include "SkCanvas.h"
 #include "SkDrawCommand.h"
+#include "SkPath.h"
 #include "SkPathOps.h"
 #include "SkPicture.h"
-#include "SkTArray.h"
 #include "SkString.h"
+#include "SkTArray.h"
 
 class SkNWayCanvas;
 
@@ -164,7 +165,7 @@ public:
 
 protected:
     void willSave() override;
-    SaveLayerStrategy willSaveLayer(const SkRect*, const SkPaint*, SaveFlags) override;
+    SaveLayerStrategy getSaveLayerStrategy(const SaveLayerRec&) override;
     void willRestore() override;
 
     void didConcat(const SkMatrix&) override;
@@ -204,7 +205,6 @@ protected:
                          const SkPaint*, SrcRectConstraint) override;
     void onDrawBitmapNine(const SkBitmap&, const SkIRect& center, const SkRect& dst,
                           const SkPaint*) override;
-    void onDrawSprite(const SkBitmap&, int left, int top, const SkPaint*) override;
     void onClipRect(const SkRect&, SkRegion::Op, ClipEdgeStyle) override;
     void onClipRRect(const SkRRect&, SkRegion::Op, ClipEdgeStyle) override;
     void onClipPath(const SkPath&, SkRegion::Op, ClipEdgeStyle) override;

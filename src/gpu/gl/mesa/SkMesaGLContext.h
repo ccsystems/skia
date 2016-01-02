@@ -19,14 +19,11 @@ private:
 public:
     ~SkMesaGLContext() override;
 
-    static SkMesaGLContext* Create(GrGLStandard forcedGpuAPI) {
-        if (kGLES_GrGLStandard == forcedGpuAPI) {
-            return NULL;
-        }
-        SkMesaGLContext* ctx = SkNEW(SkMesaGLContext);
+    static SkMesaGLContext* Create() {
+        SkMesaGLContext* ctx = new SkMesaGLContext;
         if (!ctx->isValid()) {
-            SkDELETE(ctx);
-            return NULL;
+            delete ctx;
+            return nullptr;
         }
         return ctx;
     }

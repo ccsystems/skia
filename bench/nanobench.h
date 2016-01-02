@@ -29,9 +29,11 @@ struct Config {
     int samples;
 #if SK_SUPPORT_GPU
     GrContextFactory::GLContextType ctxType;
+    GrContextFactory::GLContextOptions ctxOptions;
     bool useDFText;
 #else
     int bogusInt;
+    int bogusIntOption;
     bool bogusBool;
 #endif
 };
@@ -78,7 +80,7 @@ struct Target {
 
     SkCanvas* getCanvas() const {
         if (!surface.get()) {
-            return NULL;
+            return nullptr;
         }
         return surface->getCanvas();
     }

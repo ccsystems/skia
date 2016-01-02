@@ -57,7 +57,6 @@ enum DrawOps {
     kDrawPosTextH_DrawOp,
     kDrawRect_DrawOp,
     kDrawRRect_DrawOp,
-    kDrawSprite_DrawOp,
     kDrawText_DrawOp,
     kDrawTextBlob_DrawOp,
     kDrawTextOnPath_DrawOp,
@@ -172,14 +171,14 @@ public:
         : fBitmap(bitmap)
         , fGenID(genID)
         , fBytesAllocated(0)
-        , fMoreRecentlyUsed(NULL)
-        , fLessRecentlyUsed(NULL)
+        , fMoreRecentlyUsed(nullptr)
+        , fLessRecentlyUsed(nullptr)
         , fToBeDrawnCount(toBeDrawnCount)
     {}
 
     ~BitmapInfo() {
         SkASSERT(0 == fToBeDrawnCount);
-        SkDELETE(fBitmap);
+        delete fBitmap;
     }
 
     void addDraws(int drawsToAdd) {

@@ -256,7 +256,7 @@ SkString::SkString() : fRec(const_cast<Rec*>(&gEmptyRec)) {
 }
 
 SkString::SkString(size_t len) {
-    fRec = AllocRec(NULL, len);
+    fRec = AllocRec(nullptr, len);
 }
 
 SkString::SkString(const char text[]) {
@@ -295,7 +295,7 @@ bool SkString::equals(const char text[]) const {
 }
 
 bool SkString::equals(const char text[], size_t len) const {
-    SkASSERT(len == 0 || text != NULL);
+    SkASSERT(len == 0 || text != nullptr);
 
     return fRec->fLength == len && !memcmp(fRec->data(), text, len);
 }
@@ -509,7 +509,7 @@ void SkString::insertU64(size_t offset, uint64_t dec, int minDigits) {
 }
 
 void SkString::insertHex(size_t offset, uint32_t hex, int minDigits) {
-    minDigits = SkPin32(minDigits, 0, 8);
+    minDigits = SkTPin(minDigits, 0, 8);
 
     static const char gHex[] = "0123456789ABCDEF";
 
@@ -624,15 +624,34 @@ SkString SkStringPrintf(const char* format, ...) {
     return formattedOutput;
 }
 
-void SkStrSplit(const char* str, const char* delimiters, SkTArray<SkString>* out) {
-    const char* end = str + strlen(str);
-    while (str != end) {
-        // Find a token.
-        const size_t len = strcspn(str, delimiters);
-        out->push_back().set(str, len);
-        str += len;
+void SkStrSplit(const char* str, const char* delimiters, SkStrSplitMode splitMode,
+                SkTArray<SkString>* out) {
+    if (splitMode == kCoalesce_SkStrSplitMode) {
         // Skip any delimiters.
         str += strspn(str, delimiters);
+    }
+    if (!*str) {
+        return;
+    }
+
+    while (true) {
+        // Find a token.
+        const size_t len = strcspn(str, delimiters);
+        if (splitMode == kStrict_SkStrSplitMode || len > 0) {
+            out->push_back().set(str, len);
+            str += len;
+        }
+
+        if (!*str) {
+            return;
+        }
+        if (splitMode == kCoalesce_SkStrSplitMode) {
+            // Skip any delimiters.
+            str += strspn(str, delimiters);
+        } else {
+            // Skip one delimiter.
+            str += 1;
+        }
     }
 }
 

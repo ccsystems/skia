@@ -14,15 +14,17 @@
 #define GET_PROC_SUFFIX(F, S) functions->f ## F = (GrGL ## F ## Proc) get(ctx, "gl" #F #S)
 #define GET_PROC_LOCAL(F) GrGL ## F ## Proc F = (GrGL ## F ## Proc) get(ctx, "gl" #F)
 
+#define GET_EGL_PROC_SUFFIX(F, S) functions->fEGL ## F = (GrEGL ## F ## Proc) get(ctx, "egl" #F #S)
+
 const GrGLInterface* GrGLAssembleInterface(void* ctx, GrGLGetProc get) {
     GET_PROC_LOCAL(GetString);
-    if (NULL == GetString) {
-        return NULL;
+    if (nullptr == GetString) {
+        return nullptr;
     }
 
     const char* verStr = reinterpret_cast<const char*>(GetString(GR_GL_VERSION));
-    if (NULL == verStr) {
-        return NULL;
+    if (nullptr == verStr) {
+        return nullptr;
     }
 
     GrGLStandard standard = GrGLGetStandardInUseFromString(verStr);
@@ -32,7 +34,22 @@ const GrGLInterface* GrGLAssembleInterface(void* ctx, GrGLGetProc get) {
     } else if (kGL_GrGLStandard == standard) {
         return GrGLAssembleGLInterface(ctx, get);
     }
-    return NULL;
+    return nullptr;
+}
+
+static void get_egl_query_and_display(GrEGLQueryStringProc* queryString, GrEGLDisplay* display,
+                                      void* ctx, GrGLGetProc get) {
+    *queryString = (GrEGLQueryStringProc) get(ctx, "eglQueryString");
+    *display = GR_EGL_NO_DISPLAY;
+    if (*queryString) {
+        GrEGLGetCurrentDisplayProc getCurrentDisplay =
+            (GrEGLGetCurrentDisplayProc) get(ctx, "eglGetCurrentDisplay");
+        if (getCurrentDisplay) {
+            *display = getCurrentDisplay();
+        } else {
+            *queryString = nullptr;
+        }
+    }
 }
 
 const GrGLInterface* GrGLAssembleGLInterface(void* ctx, GrGLGetProc get) {
@@ -40,9 +57,9 @@ const GrGLInterface* GrGLAssembleGLInterface(void* ctx, GrGLGetProc get) {
     GET_PROC_LOCAL(GetStringi);
     GET_PROC_LOCAL(GetIntegerv);
 
-    // GetStringi may be NULL depending on the GL version.
-    if (NULL == GetString || NULL == GetIntegerv) {
-        return NULL;
+    // GetStringi may be nullptr depending on the GL version.
+    if (nullptr == GetString || nullptr == GetIntegerv) {
+        return nullptr;
     }
 
     const char* versionString = (const char*) GetString(GR_GL_VERSION);
@@ -50,15 +67,19 @@ const GrGLInterface* GrGLAssembleGLInterface(void* ctx, GrGLGetProc get) {
 
     if (glVer < GR_GL_VER(1,5) || GR_GL_INVALID_VER == glVer) {
         // We must have array and element_array buffer objects.
-        return NULL;
+        return nullptr;
     }
 
+    GrEGLQueryStringProc queryString;
+    GrEGLDisplay display;
+    get_egl_query_and_display(&queryString, &display, ctx, get);
     GrGLExtensions extensions;
-    if (!extensions.init(kGL_GrGLStandard, GetString, GetStringi, GetIntegerv)) {
-        return NULL;
+    if (!extensions.init(kGL_GrGLStandard, GetString, GetStringi, GetIntegerv, queryString,
+                         display)) {
+        return nullptr;
     }
 
-    GrGLInterface* interface = SkNEW(GrGLInterface());
+    GrGLInterface* interface = new GrGLInterface();
     GrGLInterface::Functions* functions = &interface->fFunctions;
 
     GET_PROC(ActiveTexture);
@@ -266,7 +287,7 @@ const GrGLInterface* GrGLAssembleGLInterface(void* ctx, GrGLGetProc get) {
     } else {
         // we must have FBOs
         delete interface;
-        return NULL;
+        return nullptr;
     }
 
     if (extensions.has("GL_NV_path_rendering")) {
@@ -317,7 +338,8 @@ const GrGLInterface* GrGLAssembleGLInterface(void* ctx, GrGLGetProc get) {
         GET_PROC(GetProgramResourceLocation);
     }
 
-    if (glVer >= GR_GL_VER(3,1) || extensions.has("GL_ARB_draw_instanced")) {
+    if (glVer >= GR_GL_VER(3,1) || extensions.has("GL_ARB_draw_instanced") ||
+        extensions.has("GL_EXT_draw_instanced")) {
         GET_PROC(DrawArraysInstanced);
         GET_PROC(DrawElementsInstanced);
     }
@@ -461,6 +483,11 @@ const GrGLInterface* GrGLAssembleGLInterface(void* ctx, GrGLGetProc get) {
         GET_PROC(ObjectLabel);
     }
 
+    if (extensions.has("EGL_KHR_image") || extensions.has("EGL_KHR_image_base")) {
+        GET_EGL_PROC_SUFFIX(CreateImage, KHR);
+        GET_EGL_PROC_SUFFIX(DestroyImage, KHR);
+    }
+
     interface->fStandard = kGL_GrGLStandard;
     interface->fExtensions.swap(&extensions);
 
@@ -469,25 +496,29 @@ const GrGLInterface* GrGLAssembleGLInterface(void* ctx, GrGLGetProc get) {
 
 const GrGLInterface* GrGLAssembleGLESInterface(void* ctx, GrGLGetProc get) {
     GET_PROC_LOCAL(GetString);
-    if (NULL == GetString) {
-        return NULL;
+    if (nullptr == GetString) {
+        return nullptr;
     }
 
     const char* verStr = reinterpret_cast<const char*>(GetString(GR_GL_VERSION));
     GrGLVersion version = GrGLGetVersionFromString(verStr);
 
     if (version < GR_GL_VER(2,0)) {
-        return NULL;
+        return nullptr;
     }
 
     GET_PROC_LOCAL(GetIntegerv);
     GET_PROC_LOCAL(GetStringi);
+    GrEGLQueryStringProc queryString;
+    GrEGLDisplay display;
+    get_egl_query_and_display(&queryString, &display, ctx, get);
     GrGLExtensions extensions;
-    if (!extensions.init(kGLES_GrGLStandard, GetString, GetStringi, GetIntegerv)) {
-        return NULL;
+    if (!extensions.init(kGLES_GrGLStandard, GetString, GetStringi, GetIntegerv, queryString,
+                         display)) {
+        return nullptr;
     }
 
-    GrGLInterface* interface = SkNEW(GrGLInterface);
+    GrGLInterface* interface = new GrGLInterface;
     GrGLInterface::Functions* functions = &interface->fFunctions;
 
     GET_PROC(ActiveTexture);
@@ -496,6 +527,11 @@ const GrGLInterface* GrGLAssembleGLESInterface(void* ctx, GrGLGetProc get) {
     GET_PROC(BindBuffer);
     GET_PROC(BindTexture);
     GET_PROC_SUFFIX(BindVertexArray, OES);
+
+    if (version >= GR_GL_VER(3,0) && extensions.has("GL_EXT_blend_func_extended")) {
+        GET_PROC_SUFFIX(BindFragDataLocation, EXT);
+        GET_PROC_SUFFIX(BindFragDataLocationIndexed, EXT);
+    }
 
     if (extensions.has("GL_KHR_blend_equation_advanced")) {
         GET_PROC_SUFFIX(BlendBarrier, KHR);
@@ -665,10 +701,10 @@ const GrGLInterface* GrGLAssembleGLESInterface(void* ctx, GrGLGetProc get) {
         GET_PROC(PushGroupMarker);
         GET_PROC(PopGroupMarker);
         // The below check is here because a device has been found that has the extension string but
-        // returns NULL from the eglGetProcAddress for the functions
-        if (NULL == functions->fInsertEventMarker ||
-            NULL == functions->fPushGroupMarker ||
-            NULL == functions->fPopGroupMarker) {
+        // returns nullptr from the eglGetProcAddress for the functions
+        if (nullptr == functions->fInsertEventMarker ||
+            nullptr == functions->fPushGroupMarker ||
+            nullptr == functions->fPopGroupMarker) {
             extensions.remove("GL_EXT_debug_marker");
         }
     }
@@ -709,17 +745,52 @@ const GrGLInterface* GrGLAssembleGLESInterface(void* ctx, GrGLGetProc get) {
         GET_PROC_SUFFIX(ProgramPathFragmentInputGen, NV);
     }
 
+    if (extensions.has("GL_CHROMIUM_path_rendering")) {
+        GET_PROC_SUFFIX(MatrixLoadf, CHROMIUM);
+        GET_PROC_SUFFIX(MatrixLoadIdentity, CHROMIUM);
+        GET_PROC_SUFFIX(PathCommands, CHROMIUM);
+        GET_PROC_SUFFIX(PathParameteri, CHROMIUM);
+        GET_PROC_SUFFIX(PathParameterf, CHROMIUM);
+        GET_PROC_SUFFIX(GenPaths, CHROMIUM);
+        GET_PROC_SUFFIX(DeletePaths, CHROMIUM);
+        GET_PROC_SUFFIX(IsPath, CHROMIUM);
+        GET_PROC_SUFFIX(PathStencilFunc, CHROMIUM);
+        GET_PROC_SUFFIX(StencilFillPath, CHROMIUM);
+        GET_PROC_SUFFIX(StencilStrokePath, CHROMIUM);
+        GET_PROC_SUFFIX(StencilFillPathInstanced, CHROMIUM);
+        GET_PROC_SUFFIX(StencilStrokePathInstanced, CHROMIUM);
+        GET_PROC_SUFFIX(CoverFillPath, CHROMIUM);
+        GET_PROC_SUFFIX(CoverStrokePath, CHROMIUM);
+        GET_PROC_SUFFIX(CoverFillPathInstanced, CHROMIUM);
+        GET_PROC_SUFFIX(CoverStrokePathInstanced, CHROMIUM);
+        GET_PROC_SUFFIX(StencilThenCoverFillPath, CHROMIUM);
+        GET_PROC_SUFFIX(StencilThenCoverStrokePath, CHROMIUM);
+        GET_PROC_SUFFIX(StencilThenCoverFillPathInstanced, CHROMIUM);
+        GET_PROC_SUFFIX(StencilThenCoverStrokePathInstanced, CHROMIUM);
+        GET_PROC_SUFFIX(ProgramPathFragmentInputGen, CHROMIUM);
+        // GL_CHROMIUM_path_rendering additions:
+        GET_PROC_SUFFIX(BindFragmentInputLocation, CHROMIUM);
+    }
+
     if (extensions.has("GL_NV_framebuffer_mixed_samples")) {
         GET_PROC_SUFFIX(CoverageModulation, NV);
     }
-
-    if (version >= GR_GL_VER(3,0) || extensions.has("GL_EXT_draw_instanced")) {
-        GET_PROC(DrawArraysInstanced);
-        GET_PROC(DrawElementsInstanced);
+    if (extensions.has("GL_CHROMIUM_framebuffer_mixed_samples")) {
+        GET_PROC_SUFFIX(CoverageModulation, CHROMIUM);
     }
 
-    if (version >= GR_GL_VER(3,0) || extensions.has("GL_EXT_instanced_arrays")) {
+    if (version >= GR_GL_VER(3,0)) {
+        GET_PROC(DrawArraysInstanced);
+        GET_PROC(DrawElementsInstanced);
+    } else if (extensions.has("GL_EXT_draw_instanced")) {
+        GET_PROC_SUFFIX(DrawArraysInstanced, EXT);
+        GET_PROC_SUFFIX(DrawElementsInstanced, EXT);
+    }
+
+    if (version >= GR_GL_VER(3,0)) {
         GET_PROC(VertexAttribDivisor);
+    } else if (extensions.has("GL_EXT_instanced_arrays")) {
+        GET_PROC_SUFFIX(VertexAttribDivisor, EXT);
     }
 
     if (extensions.has("GL_NV_bindless_texture")) {
@@ -746,6 +817,23 @@ const GrGLInterface* GrGLAssembleGLESInterface(void* ctx, GrGLGetProc get) {
         GET_PROC_SUFFIX(PushDebugGroup, KHR);
         GET_PROC_SUFFIX(PopDebugGroup, KHR);
         GET_PROC_SUFFIX(ObjectLabel, KHR);
+        // In general we have a policy against removing extension strings when the driver does
+        // not provide function pointers for an advertised extension. However, because there is a
+        // known device that advertises GL_KHR_debug but fails to provide the functions and this is
+        // a debugging- only extension we've made an exception. This also can happen when using
+        // APITRACE.
+        if (!interface->fFunctions.fDebugMessageControl) {
+            extensions.remove("GL_KHR_debug");
+        }
+    }
+
+    if (extensions.has("GL_CHROMIUM_bind_uniform_location")) {
+        GET_PROC_SUFFIX(BindUniformLocation, CHROMIUM);
+    }
+
+    if (extensions.has("EGL_KHR_image") || extensions.has("EGL_KHR_image_base")) {
+        GET_EGL_PROC_SUFFIX(CreateImage, KHR);
+        GET_EGL_PROC_SUFFIX(DestroyImage, KHR);
     }
 
     interface->fStandard = kGLES_GrGLStandard;

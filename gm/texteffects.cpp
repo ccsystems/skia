@@ -17,7 +17,7 @@ static void r0(SkLayerRasterizer::Builder* rastBuilder, SkPaint& p) {
                               SkBlurMask::ConvertRadiusToSigma(SkIntToScalar(3))))->unref();
     rastBuilder->addLayer(p, SkIntToScalar(3), SkIntToScalar(3));
 
-    p.setMaskFilter(NULL);
+    p.setMaskFilter(nullptr);
     p.setStyle(SkPaint::kStroke_Style);
     p.setStrokeWidth(SK_Scalar1);
     rastBuilder->addLayer(p);
@@ -68,7 +68,7 @@ static void r4(SkLayerRasterizer::Builder* rastBuilder, SkPaint& p) {
     p.setXfermodeMode(SkXfermode::kClear_Mode);
     rastBuilder->addLayer(p, SK_Scalar1*3/2, SK_Scalar1*3/2);
 
-    p.setXfermode(NULL);
+    p.setXfermode(nullptr);
     rastBuilder->addLayer(p);
 }
 
@@ -119,8 +119,8 @@ static void r8(SkLayerRasterizer::Builder* rastBuilder, SkPaint& p) {
     p.setXfermodeMode(SkXfermode::kClear_Mode);
     rastBuilder->addLayer(p);
 
-    p.setPathEffect(NULL);
-    p.setXfermode(NULL);
+    p.setPathEffect(nullptr);
+    p.setXfermode(nullptr);
     p.setStyle(SkPaint::kStroke_Style);
     p.setStrokeWidth(SK_Scalar1);
     rastBuilder->addLayer(p);
@@ -136,8 +136,8 @@ static void r9(SkLayerRasterizer::Builder* rastBuilder, SkPaint& p) {
     p.setXfermodeMode(SkXfermode::kClear_Mode);
     rastBuilder->addLayer(p);
 
-    p.setPathEffect(NULL);
-    p.setXfermode(NULL);
+    p.setPathEffect(nullptr);
+    p.setXfermode(nullptr);
     p.setStyle(SkPaint::kStroke_Style);
     p.setStrokeWidth(SK_Scalar1);
     rastBuilder->addLayer(p);
@@ -170,20 +170,7 @@ static void apply_shader(SkPaint* paint, int index) {
     paint->setColor(SK_ColorBLUE);
 }
 
-class TextEffectsGM : public skiagm::GM {
-public:
-    TextEffectsGM() {}
-
-protected:
-    SkString onShortName() override {
-        return SkString("texteffects");
-    }
-
-    SkISize onISize() override {
-        return SkISize::Make(460, 680);
-    }
-
-    void onDraw(SkCanvas* canvas) override {
+DEF_SIMPLE_GM(texteffects, canvas, 460, 680) {
         canvas->save();
 
         SkPaint     paint;
@@ -199,7 +186,7 @@ protected:
         for (int i = 0; i < static_cast<int>(SK_ARRAY_COUNT(gRastProcs)); i++) {
             apply_shader(&paint, i);
 
-            //  paint.setMaskFilter(NULL);
+            //  paint.setMaskFilter(nullptr);
             //  paint.setColor(SK_ColorBLACK);
 
             canvas->drawText(str.c_str(), str.size(), x, y, paint);
@@ -208,13 +195,36 @@ protected:
         }
 
         canvas->restore();
-    }
+}
 
-private:
-    typedef skiagm::GM INHERITED;
-};
+DEF_SIMPLE_GM(textunderstrike, canvas, 460, 680) {
+    canvas->clear(SK_ColorYELLOW);
+    SkPaint paint;
+    sk_tool_utils::set_portable_typeface(&paint);
+    paint.setTextSize(50);
+    paint.setStrokeWidth(5);
+    paint.setAntiAlias(true);
 
-//////////////////////////////////////////////////////////////////////////////
+    auto drawText = [&]() {
+        paint.setStyle(SkPaint::kFill_Style);
+        canvas->drawText("Hello", 5, 100, 50, paint);
+        paint.setStyle(SkPaint::kStroke_Style);
+        canvas->drawText("Hello", 5, 100, 100, paint);
+        canvas->translate(0, 100);
+    };
 
-static skiagm::GM* MyFactory(void*) { return new TextEffectsGM; }
-static skiagm::GMRegistry reg(MyFactory);
+    drawText();
+    paint.setUnderlineText(true);
+    drawText();
+    paint.setUnderlineText(false);
+    paint.setStrikeThruText(true);
+    drawText();
+    paint.setUnderlineText(true);
+    drawText();
+    paint.setColor(SK_ColorWHITE);
+    paint.setStyle(SkPaint::kStroke_Style);
+    canvas->drawText("Hello", 5, 100, 50, paint);
+    paint.setColor(SK_ColorBLUE);
+    paint.setStyle(SkPaint::kFill_Style);
+    canvas->drawText("Hello", 5, 100, 50, paint);
+}

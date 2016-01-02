@@ -53,10 +53,8 @@
         ],
       },
       'sources': [
-        '../third_party/externals/libjpeg-turbo/jaricom.c',
         '../third_party/externals/libjpeg-turbo/jcapimin.c',
         '../third_party/externals/libjpeg-turbo/jcapistd.c',
-        '../third_party/externals/libjpeg-turbo/jcarith.c',
         '../third_party/externals/libjpeg-turbo/jccoefct.c',
         '../third_party/externals/libjpeg-turbo/jccolor.c',
         '../third_party/externals/libjpeg-turbo/jcdctmgr.c',
@@ -68,14 +66,12 @@
         '../third_party/externals/libjpeg-turbo/jcmaster.c',
         '../third_party/externals/libjpeg-turbo/jcomapi.c',
         '../third_party/externals/libjpeg-turbo/jconfig.h',
-        '../third_party/externals/libjpeg-turbo/jconfigint.h',
         '../third_party/externals/libjpeg-turbo/jcparam.c',
         '../third_party/externals/libjpeg-turbo/jcphuff.c',
         '../third_party/externals/libjpeg-turbo/jcprepct.c',
         '../third_party/externals/libjpeg-turbo/jcsample.c',
         '../third_party/externals/libjpeg-turbo/jdapimin.c',
         '../third_party/externals/libjpeg-turbo/jdapistd.c',
-        '../third_party/externals/libjpeg-turbo/jdarith.c',
         '../third_party/externals/libjpeg-turbo/jdcoefct.c',
         '../third_party/externals/libjpeg-turbo/jdcolor.c',
         '../third_party/externals/libjpeg-turbo/jdct.h',
@@ -106,7 +102,6 @@
         '../third_party/externals/libjpeg-turbo/jmorecfg.h',
         '../third_party/externals/libjpeg-turbo/jpegint.h',
         '../third_party/externals/libjpeg-turbo/jpeglib.h',
-        '../third_party/externals/libjpeg-turbo/jpeglibmangler.h',
         '../third_party/externals/libjpeg-turbo/jquant1.c',
         '../third_party/externals/libjpeg-turbo/jquant2.c',
         '../third_party/externals/libjpeg-turbo/jutils.c',
@@ -134,15 +129,15 @@
         [ 'skia_arch_type == "x86" and (skia_os != "android" or host_os == "linux")', {
           'sources': [
             '../third_party/externals/libjpeg-turbo/simd/jsimd_i386.c',
-            '../third_party/externals/libjpeg-turbo/simd/jccolor-mmx.asm',
+            '../third_party/externals/libjpeg-turbo/simd/jccolor-mmx.asm', 
             '../third_party/externals/libjpeg-turbo/simd/jccolor-sse2.asm',
-            '../third_party/externals/libjpeg-turbo/simd/jcgray-mmx.asm',
-            '../third_party/externals/libjpeg-turbo/simd/jcgray-sse2.asm',
+            '../third_party/externals/libjpeg-turbo/simd/jcgray-mmx.asm',  
+            '../third_party/externals/libjpeg-turbo/simd/jcgray-sse2.asm', 
             '../third_party/externals/libjpeg-turbo/simd/jcsample-mmx.asm',
             '../third_party/externals/libjpeg-turbo/simd/jcsample-sse2.asm',
-            '../third_party/externals/libjpeg-turbo/simd/jdcolor-mmx.asm',
+            '../third_party/externals/libjpeg-turbo/simd/jdcolor-mmx.asm', 
             '../third_party/externals/libjpeg-turbo/simd/jdcolor-sse2.asm',
-            '../third_party/externals/libjpeg-turbo/simd/jdmerge-mmx.asm',
+            '../third_party/externals/libjpeg-turbo/simd/jdmerge-mmx.asm', 
             '../third_party/externals/libjpeg-turbo/simd/jdmerge-sse2.asm',
             '../third_party/externals/libjpeg-turbo/simd/jdsample-mmx.asm',
             '../third_party/externals/libjpeg-turbo/simd/jdsample-sse2.asm',
@@ -161,11 +156,11 @@
             '../third_party/externals/libjpeg-turbo/simd/jidctint-sse2.asm',
             '../third_party/externals/libjpeg-turbo/simd/jidctred-mmx.asm',
             '../third_party/externals/libjpeg-turbo/simd/jidctred-sse2.asm',
-            '../third_party/externals/libjpeg-turbo/simd/jquant-3dn.asm',
+            '../third_party/externals/libjpeg-turbo/simd/jquant-3dn.asm',  
             '../third_party/externals/libjpeg-turbo/simd/jquantf-sse2.asm',
             '../third_party/externals/libjpeg-turbo/simd/jquanti-sse2.asm',
-            '../third_party/externals/libjpeg-turbo/simd/jquant-mmx.asm',
-            '../third_party/externals/libjpeg-turbo/simd/jquant-sse.asm',
+            '../third_party/externals/libjpeg-turbo/simd/jquant-mmx.asm',  
+            '../third_party/externals/libjpeg-turbo/simd/jquant-sse.asm',  
             '../third_party/externals/libjpeg-turbo/simd/jsimdcpu.asm',
           ],
         }],
@@ -209,14 +204,9 @@
             }],
           ],
         }],
-        [ 'skia_arch_type == "mips64"', {
-          'sources': [
-            '../third_party/externals/libjpeg-turbo/simd/jsimd_mips.c',
-            '../third_party/externals/libjpeg-turbo/simd/jsimd_mips_dspr2_asm.h',
-            '../third_party/externals/libjpeg-turbo/simd/jsimd_mips_dspr2.S',
-          ],
-        }],
-        [ 'skia_arch_type == "mips32"', {
+        # mips simd is supported in later versions of libjpeg-turbo.  If we
+        # choose to update our copy of libjpeg-turbo we can enable mips simd.
+        [ '"mips" in skia_arch_type', {
           'sources': [
             '../third_party/externals/libjpeg-turbo/jsimd_none.c',
           ],
@@ -230,6 +220,9 @@
           'dependencies': [
             'yasm-win',
           ],
+          'defines': [
+            'TURBO_FOR_WINDOWS',
+          ],
           'variables': {
             'yasm_path': '<(PRODUCT_DIR)/yasm.exe',
             'conditions': [
@@ -239,7 +232,6 @@
                   '-D__x86__',
                   '-DWIN32',
                   '-DMSVC',
-                  '-Iwin/'
                 ],
               }, {
                 'yasm_format': '-fwin64',
@@ -247,7 +239,6 @@
                   '-D__x86_64__',
                   '-DWIN64',
                   '-DMSVC',
-                  '-Iwin/'
                 ],
               }],
             ],
@@ -266,14 +257,12 @@
                 'yasm_flags': [
                   '-D__x86__',
                   '-DELF',
-                  '-Ilinux/'
                 ],
               }, {
                 'yasm_format': '-felf64',
                 'yasm_flags': [
                   '-D__x86_64__',
                   '-DELF',
-                  '-Ilinux/'
                 ],
               }],
             ],
@@ -292,14 +281,12 @@
                 'yasm_flags': [
                   '-D__x86__',
                   '-DMACHO',
-                  '-Imac/'
                 ],
               }, {
                 'yasm_format': '-fmacho64',
                 'yasm_flags': [
                   '-D__x86_64__',
                   '-DMACHO',
-                  '-Imac/'
                 ],
               }],
             ],
@@ -318,14 +305,12 @@
                 'yasm_flags': [
                   '-D__x86__',
                   '-DELF',
-                  '-Ilinux/'
                 ],
               }, {
                 'yasm_format': '-felf64',
                 'yasm_flags': [
                   '-D__x86_64__',
                   '-DELF',
-                  '-Ilinux/'
                 ],
               }],
             ],

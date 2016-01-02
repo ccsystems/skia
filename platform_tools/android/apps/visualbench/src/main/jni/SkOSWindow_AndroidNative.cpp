@@ -18,19 +18,7 @@ SkOSWindow::SkOSWindow(void* hwnd) {
 }
 
 SkOSWindow::~SkOSWindow() {
-    if (fWindow.fDisplay != EGL_NO_DISPLAY) {
-        eglMakeCurrent(fWindow.fDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-        if (fWindow.fContext != EGL_NO_CONTEXT) {
-            eglDestroyContext(fWindow.fDisplay, fWindow.fContext);
-        }
-        if (fWindow.fSurface != EGL_NO_SURFACE) {
-            eglDestroySurface(fWindow.fDisplay, fWindow.fSurface);
-        }
-        eglTerminate(fWindow.fDisplay);
-    }
-    fWindow.fDisplay = EGL_NO_DISPLAY;
-    fWindow.fContext = EGL_NO_CONTEXT;
-    fWindow.fSurface = EGL_NO_SURFACE;
+    this->detach();
 }
 
 bool SkOSWindow::attach(SkBackEndTypes attachType,
@@ -111,8 +99,8 @@ bool SkOSWindow::attach(SkBackEndTypes attachType,
 
         ANativeWindow_setBuffersGeometry(fNativeWindow, 0, 0, format);
 
-        surface = eglCreateWindowSurface(display, config, fNativeWindow, NULL);
-        context = eglCreateContext(display, config, NULL, kAPIs[api].fContextAttribs);
+        surface = eglCreateWindowSurface(display, config, fNativeWindow, nullptr);
+        context = eglCreateContext(display, config, nullptr, kAPIs[api].fContextAttribs);
         if (EGL_NO_CONTEXT == context) {
             SkDebugf("eglCreateContext failed.  EGL Error: 0x%08x\n", eglGetError());
             continue;
@@ -147,7 +135,19 @@ bool SkOSWindow::attach(SkBackEndTypes attachType,
 }
 
 void SkOSWindow::detach() {
-    fDestroyRequested = true;
+    if (fWindow.fDisplay != EGL_NO_DISPLAY) {
+        eglMakeCurrent(fWindow.fDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+        if (fWindow.fContext != EGL_NO_CONTEXT) {
+            eglDestroyContext(fWindow.fDisplay, fWindow.fContext);
+        }
+        if (fWindow.fSurface != EGL_NO_SURFACE) {
+            eglDestroySurface(fWindow.fDisplay, fWindow.fSurface);
+        }
+        eglTerminate(fWindow.fDisplay);
+    }
+    fWindow.fDisplay = EGL_NO_DISPLAY;
+    fWindow.fContext = EGL_NO_CONTEXT;
+    fWindow.fSurface = EGL_NO_SURFACE;
 }
 
 void SkOSWindow::present() {

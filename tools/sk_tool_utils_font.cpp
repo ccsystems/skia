@@ -30,7 +30,7 @@ void release_portable_typefaces() {
 SK_DECLARE_STATIC_MUTEX(gTestFontMutex);
 
 SkTypeface* create_font(const char* name, SkTypeface::Style style) {
-    SkTestFontData* fontData = NULL;
+    SkTestFontData* fontData = nullptr;
     const SubFont* sub;
     if (name) {
         for (int index = 0; index < gSubFontsCount; ++index) {
@@ -59,13 +59,13 @@ SkTypeface* create_font(const char* name, SkTypeface::Style style) {
         if (fontData->fFontCache) {
             font = SkSafeRef(fontData->fFontCache);
         } else {
-            font = SkNEW_ARGS(SkTestFont, (*fontData));
+            font = new SkTestFont(*fontData);
             SkDEBUGCODE(font->fDebugName = sub->fName);
             SkDEBUGCODE(font->fDebugStyle = sub->fStyle);
             fontData->fFontCache = SkSafeRef(font);
         }
     }
-    return SkNEW_ARGS(SkTestTypeface, (font, SkFontStyle(style)));
+    return new SkTestTypeface(font, SkFontStyle(style));
 }
 
 }

@@ -18,8 +18,8 @@ inline static bool compute_key_for_line_path(const SkPath& path, const GrStrokeI
     if (!path.isLine(pts)) {
         return false;
     }
-    SK_COMPILE_ASSERT((sizeof(pts) % sizeof(uint32_t)) == 0 && sizeof(pts) > sizeof(uint32_t),
-                      pts_needs_padding);
+    static_assert((sizeof(pts) % sizeof(uint32_t)) == 0 && sizeof(pts) > sizeof(uint32_t),
+                  "pts_needs_padding");
 
     const int kBaseData32Cnt = 1 + sizeof(pts) / sizeof(uint32_t);
     int strokeDataCnt = stroke.computeUniqueKeyFragmentData32Cnt();
@@ -36,11 +36,12 @@ inline static bool compute_key_for_line_path(const SkPath& path, const GrStrokeI
 inline static bool compute_key_for_oval_path(const SkPath& path, const GrStrokeInfo& stroke,
                                              GrUniqueKey* key) {
     SkRect rect;
-    if (!path.isOval(&rect)) {
+    // Point order is significant when dashing, so we cannot devolve to a rect key.
+    if (stroke.isDashed() || !path.isOval(&rect)) {
         return false;
     }
-    SK_COMPILE_ASSERT((sizeof(rect) % sizeof(uint32_t)) == 0 && sizeof(rect) > sizeof(uint32_t),
-                      rect_needs_padding);
+    static_assert((sizeof(rect) % sizeof(uint32_t)) == 0 && sizeof(rect) > sizeof(uint32_t),
+                  "rect_needs_padding");
 
     const int kBaseData32Cnt = 1 + sizeof(rect) / sizeof(uint32_t);
     int strokeDataCnt = stroke.computeUniqueKeyFragmentData32Cnt();
@@ -69,14 +70,27 @@ inline static bool compute_key_for_simple_path(const SkPath& path, const GrStrok
     }
 
     // If somebody goes wild with the constant, it might cause an overflow.
-    SK_COMPILE_ASSERT(kSimpleVolatilePathVerbLimit <= 100,
-                      big_simple_volatile_path_verb_limit_may_cause_overflow);
+    static_assert(kSimpleVolatilePathVerbLimit <= 100,
+                  "big_simple_volatile_path_verb_limit_may_cause_overflow");
 
     const int pointCnt = path.countPoints();
     if (pointCnt < 0) {
         SkASSERT(false);
         return false;
     }
+    SkSTArray<16, SkScalar, true> conicWeights(16);
+    if ((path.getSegmentMasks() & SkPath::kConic_SegmentMask) != 0) {
+        SkPath::RawIter iter(path);
+        SkPath::Verb verb;
+        SkPoint points[4];
+        while ((verb = iter.next(points)) != SkPath::kDone_Verb) {
+            if (verb == SkPath::kConic_Verb) {
+                conicWeights.push_back(iter.conicWeight());
+            }
+        }
+    }
+
+    const int conicWeightCnt = conicWeights.count();
 
     // Construct counts that align as uint32_t counts.
 #define ARRAY_DATA32_COUNT(array_type, count) \
@@ -84,16 +98,17 @@ inline static bool compute_key_for_simple_path(const SkPath& path, const GrStrok
 
     const int verbData32Cnt = ARRAY_DATA32_COUNT(uint8_t, verbCnt);
     const int pointData32Cnt = ARRAY_DATA32_COUNT(SkPoint, pointCnt);
+    const int conicWeightData32Cnt = ARRAY_DATA32_COUNT(SkScalar, conicWeightCnt);
 
 #undef ARRAY_DATA32_COUNT
 
     // The unique key data is a "message" with following fragments:
     // 0) domain, key length, uint32_t for fill type and uint32_t for verbCnt
     //   (fragment 0, fixed size)
-    // 1) verb and point data (varying size)
+    // 1) verb, point data and conic weights (varying size)
     // 2) stroke data (varying size)
 
-    const int baseData32Cnt = 2 + verbData32Cnt + pointData32Cnt;
+    const int baseData32Cnt = 2 + verbData32Cnt + pointData32Cnt + conicWeightData32Cnt;
     const int strokeDataCnt = stroke.computeUniqueKeyFragmentData32Cnt();
     static const GrUniqueKey::Domain kSimpleVolatilePathDomain = GrUniqueKey::GenerateDomain();
     GrUniqueKey::Builder builder(key, kSimpleVolatilePathDomain, baseData32Cnt + strokeDataCnt);
@@ -102,11 +117,12 @@ inline static bool compute_key_for_simple_path(const SkPath& path, const GrStrok
 
     // Serialize the verbCnt to make the whole message unambiguous.
     // We serialize two variable length fragments to the message:
-    // * verb and point data (fragment 1)
+    // * verbs, point data and conic weights (fragment 1)
     // * stroke data (fragment 2)
     // "Proof:"
     // Verb count establishes unambiguous verb data.
-    // Unambiguous verb data establishes unambiguous point data, making fragment 1 unambiguous.
+    // Verbs encode also point data size and conic weight size.
+    // Thus the fragment 1 is unambiguous.
     // Unambiguous fragment 1 establishes unambiguous fragment 2, since the length of the message
     // has been established.
 
@@ -121,13 +137,21 @@ inline static bool compute_key_for_simple_path(const SkPath& path, const GrStrok
     path.getVerbs(reinterpret_cast<uint8_t*>(&builder[i]), verbCnt);
     i += verbData32Cnt;
 
-    SK_COMPILE_ASSERT(((sizeof(SkPoint) % sizeof(uint32_t)) == 0) &&
-                      sizeof(SkPoint) > sizeof(uint32_t), skpoint_array_needs_padding);
+    static_assert(((sizeof(SkPoint) % sizeof(uint32_t)) == 0) && sizeof(SkPoint) > sizeof(uint32_t),
+                  "skpoint_array_needs_padding");
 
     // Here we assume getPoints does a memcpy, so that we do not need to worry about the alignment.
     path.getPoints(reinterpret_cast<SkPoint*>(&builder[i]), pointCnt);
-    SkDEBUGCODE(i += pointData32Cnt);
+    i += pointData32Cnt;
 
+    if (conicWeightCnt > 0) {
+        if (conicWeightData32Cnt != static_cast<int>(
+                (conicWeightCnt * sizeof(SkScalar) / sizeof(uint32_t)))) {
+            builder[i + conicWeightData32Cnt - 1] = 0;
+        }
+        memcpy(&builder[i], conicWeights.begin(), conicWeightCnt * sizeof(SkScalar));
+        SkDEBUGCODE(i += conicWeightData32Cnt);
+    }
     SkASSERT(i == baseData32Cnt);
     if (strokeDataCnt > 0) {
         stroke.asUniqueKeyFragment(&builder[baseData32Cnt]);
@@ -170,4 +194,21 @@ void GrPath::ComputeKey(const SkPath& path, const GrStrokeInfo& stroke, GrUnique
     compute_key_for_general_path(path, stroke, key);
     *outIsVolatile = path.isVolatile();
 }
+
+#ifdef SK_DEBUG
+bool GrPath::isEqualTo(const SkPath& path, const GrStrokeInfo& stroke) const {
+    if (!fStroke.hasEqualEffect(stroke)) {
+        return false;
+    }
+
+    // We treat same-rect ovals as identical - but only when not dashing.
+    SkRect ovalBounds;
+    if (!fStroke.isDashed() && fSkPath.isOval(&ovalBounds)) {
+        SkRect otherOvalBounds;
+        return path.isOval(&otherOvalBounds) && ovalBounds == otherOvalBounds;
+    }
+
+    return fSkPath == path;
+}
+#endif
 

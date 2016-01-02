@@ -59,6 +59,7 @@ enum GrGLDriver {
     kChromium_GrGLDriver,
     kNVIDIA_GrGLDriver,
     kIntel_GrGLDriver,
+    kANGLE_GrGLDriver,
     kUnknown_GrGLDriver
 };
 
@@ -78,6 +79,12 @@ enum GrGLDriver {
     do {                                                                       \
         *(p) = GR_GL_INIT_ZERO;                                                \
         GR_GL_CALL(gl, GetFramebufferAttachmentParameteriv(t, a, pname, p));   \
+    } while (0)
+
+#define GR_GL_GetNamedFramebufferAttachmentParameteriv(gl, fb, a, pname, p)          \
+    do {                                                                             \
+        *(p) = GR_GL_INIT_ZERO;                                                      \
+        GR_GL_CALL(gl, GetNamedFramebufferAttachmentParameteriv(fb, a, pname, p));   \
     } while (0)
 
 #define GR_GL_GetRenderbufferParameteriv(gl, t, pname, p)                      \
@@ -136,11 +143,6 @@ void GrGLCheckErr(const GrGLInterface* gl,
                   const char* call);
 
 void GrGLClearErr(const GrGLInterface* gl);
-
-/**
- * Helper for converting SkMatrix to a column-major GL float array
- */
-template<int MatrixSize> void GrGLGetMatrix(GrGLfloat* dest, const SkMatrix& src);
 
 ////////////////////////////////////////////////////////////////////////////////
 

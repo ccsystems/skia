@@ -14,16 +14,13 @@ class SkDebugGLContext : public SkGLContext {
 public:
     ~SkDebugGLContext() override;
 
-    static SkDebugGLContext* Create(GrGLStandard forcedGpuAPI) {
-        if (kGLES_GrGLStandard == forcedGpuAPI) {
-            return NULL;
-        }
-        return SkNEW(SkDebugGLContext);
+    static SkDebugGLContext* Create() {
+        return new SkDebugGLContext;
     }
 private:
     void onPlatformMakeCurrent() const override {}
     void onPlatformSwapBuffers() const override {}
-    GrGLFuncPtr onPlatformGetProcAddress(const char*) const override { return NULL; }
+    GrGLFuncPtr onPlatformGetProcAddress(const char*) const override { return nullptr; }
 
     SkDebugGLContext();
 };

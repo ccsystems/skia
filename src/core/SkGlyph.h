@@ -22,6 +22,7 @@ class SkGlyphCache;
 
 #define kMaxGlyphWidth (1<<13)
 
+SK_BEGIN_REQUIRE_DENSE
 class SkGlyph {
     enum {
         kSubBits = 2,
@@ -131,8 +132,8 @@ class SkGlyph {
 
     void initCommon(uint32_t id) {
         fID             = id;
-        fImage          = NULL;
-        fPath           = NULL;
+        fImage          = nullptr;
+        fPath           = nullptr;
         fMaskFormat     = MASK_FORMAT_UNKNOWN;
         fForceBW        = 0;
     }
@@ -182,5 +183,6 @@ class SkGlyph {
 #endif
     uint32_t    fID;
 };
+SK_END_REQUIRE_DENSE
 
 #endif

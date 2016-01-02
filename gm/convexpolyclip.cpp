@@ -10,6 +10,7 @@
 
 #include "SkBitmap.h"
 #include "SkGradientShader.h"
+#include "SkPath.h"
 #include "SkTLList.h"
 
 static SkBitmap make_bmp(int w, int h) {
@@ -157,7 +158,7 @@ protected:
         SkScalar startX = 0;
         int testLayers = kBench_Mode != this->getMode();
         for (int doLayer = 0; doLayer <= testLayers; ++doLayer) {
-            for (SkTLList<Clip>::Iter iter(fClips, SkTLList<Clip>::Iter::kHead_IterStart);
+            for (ClipList::Iter iter(fClips, ClipList::Iter::kHead_IterStart);
                  iter.get();
                  iter.next()) {
                 const Clip* clip = iter.get();
@@ -168,7 +169,7 @@ protected:
                         clip->getBounds(&bounds);
                         bounds.outset(2, 2);
                         bounds.offset(x, y);
-                        canvas->saveLayer(&bounds, NULL);
+                        canvas->saveLayer(&bounds, nullptr);
                     } else {
                         canvas->save();
                     }
@@ -191,7 +192,7 @@ protected:
                         clip->getBounds(&bounds);
                         bounds.outset(2, 2);
                         bounds.offset(x, y);
-                        canvas->saveLayer(&bounds, NULL);
+                        canvas->saveLayer(&bounds, nullptr);
                     } else {
                         canvas->save();
                     }
@@ -290,12 +291,12 @@ private:
         SkRect fRect;
     };
 
-    SkTLList<Clip>   fClips;
+    typedef SkTLList<Clip, 1> ClipList;
+    ClipList         fClips;
     SkBitmap         fBmp;
 
     typedef GM INHERITED;
 };
 
-DEF_GM( return SkNEW(ConvexPolyClip); )
-
+DEF_GM(return new ConvexPolyClip;)
 }

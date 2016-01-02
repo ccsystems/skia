@@ -24,13 +24,13 @@ public:
     /** Construct a 2D transformation image filter.
      *  @param transform    The matrix to apply when drawing the src bitmap
      *  @param filterLevel  The quality of filtering to apply when scaling.
-     *  @param input        The input image filter.  If NULL, the src bitmap
+     *  @param input        The input image filter.  If nullptr, the src bitmap
      *                      passed to filterImage() is used instead.
      */
 
     static SkMatrixImageFilter* Create(const SkMatrix& transform,
                                        SkFilterQuality,
-                                       SkImageFilter* input = NULL);
+                                       SkImageFilter* input = nullptr);
     virtual ~SkMatrixImageFilter();
 
     void computeFastBounds(const SkRect&, SkRect*) const override;
@@ -46,8 +46,8 @@ protected:
 
     virtual bool onFilterImage(Proxy*, const SkBitmap& src, const Context&,
                                SkBitmap* result, SkIPoint* loc) const override;
-    virtual bool onFilterBounds(const SkIRect& src, const SkMatrix&,
-                                SkIRect* dst) const override;
+    virtual void onFilterNodeBounds(const SkIRect& src, const SkMatrix&,
+                                    SkIRect* dst, MapDirection) const override;
 
 private:
     SkMatrix              fTransform;

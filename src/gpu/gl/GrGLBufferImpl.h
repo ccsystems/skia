@@ -9,7 +9,7 @@
 #define GrGLBufferImpl_DEFINED
 
 #include "SkTypes.h"
-#include "gl/GrGLFunctions.h"
+#include "gl/GrGLTypes.h"
 
 class GrGLGpu;
 
@@ -19,10 +19,20 @@ class GrGLGpu;
  */
 class GrGLBufferImpl : SkNoncopyable {
 public:
+    enum Usage {
+        kStaticDraw_Usage = 0,
+        kDynamicDraw_Usage,
+        kStreamDraw_Usage,
+        kStreamRead_Usage,
+
+        kLast_Usage = kStreamRead_Usage
+    };
+    static const int kUsageCount = kLast_Usage + 1;
+
     struct Desc {
         GrGLuint    fID;            // set to 0 to indicate buffer is CPU-backed and not a VBO.
         size_t      fSizeInBytes;
-        bool        fDynamic;
+        Usage       fUsage;
     };
 
     GrGLBufferImpl(GrGLGpu*, const Desc&, GrGLenum bufferType);
@@ -36,8 +46,6 @@ public:
 
     GrGLuint bufferID() const { return fDesc.fID; }
     size_t baseOffset() const { return reinterpret_cast<size_t>(fCPUData); }
-
-    void bind(GrGLGpu* gpu) const;
 
     void* map(GrGLGpu* gpu);
     void unmap(GrGLGpu* gpu);

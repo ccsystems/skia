@@ -23,11 +23,11 @@ class SK_API SkXfermodeImageFilter : public SkImageFilter {
 public:
     virtual ~SkXfermodeImageFilter();
 
-    static SkXfermodeImageFilter* Create(SkXfermode* mode, SkImageFilter* background,
-                                         SkImageFilter* foreground = NULL,
-                                         const CropRect* cropRect = NULL) {
+    static SkImageFilter* Create(SkXfermode* mode, SkImageFilter* background,
+                                 SkImageFilter* foreground = NULL,
+                                 const CropRect* cropRect = NULL) {
         SkImageFilter* inputs[2] = { background, foreground };
-        return SkNEW_ARGS(SkXfermodeImageFilter, (mode, inputs, cropRect));
+        return new SkXfermodeImageFilter(mode, inputs, cropRect);
     }
 
     SK_TO_STRING_OVERRIDE()

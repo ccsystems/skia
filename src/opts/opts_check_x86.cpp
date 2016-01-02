@@ -13,14 +13,8 @@
 #include "SkBlitRow.h"
 #include "SkBlitRow_opts_SSE2.h"
 #include "SkBlitRow_opts_SSE4.h"
-#include "SkBlurImage_opts_SSE2.h"
-#include "SkBlurImage_opts_SSE4.h"
-#include "SkLazyPtr.h"
-#include "SkMorphology_opts.h"
-#include "SkMorphology_opts_SSE2.h"
 #include "SkRTConf.h"
-#include "SkUtils.h"
-#include "SkUtils_opts_SSE2.h"
+#include <mutex>
 
 #if defined(_MSC_VER) && defined(_WIN64)
 #include <intrin.h>
@@ -74,39 +68,12 @@ static inline void getcpuid(int info_type, int info[4]) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-/* Fetch the SIMD level directly from the CPU, at run-time.
- * Only checks the levels needed by the optimizations in this file.
- */
-namespace {  // get_SIMD_level() technically must have external linkage, so no static.
-int* get_SIMD_level() {
-    int cpu_info[4] = { 0, 0, 0, 0 };
-    getcpuid(1, cpu_info);
-
-    int* level = SkNEW(int);
-
-    if ((cpu_info[2] & (1<<20)) != 0) {
-        *level = SK_CPU_SSE_LEVEL_SSE42;
-    } else if ((cpu_info[2] & (1<<19)) != 0) {
-        *level = SK_CPU_SSE_LEVEL_SSE41;
-    } else if ((cpu_info[2] & (1<<9)) != 0) {
-        *level = SK_CPU_SSE_LEVEL_SSSE3;
-    } else if ((cpu_info[3] & (1<<26)) != 0) {
-        *level = SK_CPU_SSE_LEVEL_SSE2;
-    } else {
-        *level = 0;
-    }
-    return level;
-}
-} // namespace
-
-SK_DECLARE_STATIC_LAZY_PTR(int, gSIMDLevel, get_SIMD_level);
-
 /* Verify that the requested SIMD level is supported in the build.
  * If not, check if the platform supports it.
  */
-static inline bool supports_simd(int minLevel) {
+static inline bool supports_simd(int level) {
 #if defined(SK_CPU_SSE_LEVEL)
-    if (minLevel <= SK_CPU_SSE_LEVEL) {
+    if (level <= SK_CPU_SSE_LEVEL) {
         return true;
     } else
 #endif
@@ -120,7 +87,18 @@ static inline bool supports_simd(int minLevel) {
          */
         return false;
 #else
-        return minLevel <= *gSIMDLevel.get();
+        static std::once_flag once;
+        static int maxLevel = 0;
+        std::call_once(once, [&]{
+            int cpu_info[4] = { 0, 0, 0, 0 };
+            getcpuid(1, cpu_info);
+
+            if (cpu_info[3] & (1<<26)) { maxLevel = SK_CPU_SSE_LEVEL_SSE2 ; }
+            if (cpu_info[2] & (1<< 9)) { maxLevel = SK_CPU_SSE_LEVEL_SSSE3; }
+            if (cpu_info[2] & (1<<19)) { maxLevel = SK_CPU_SSE_LEVEL_SSE41; }
+            if (cpu_info[2] & (1<<20)) { maxLevel = SK_CPU_SSE_LEVEL_SSE42; }
+        });
+        return level <= maxLevel;
 #endif
     }
 }
@@ -196,26 +174,26 @@ void SkBitmapProcState::platformProcs() {
 
 static const SkBlitRow::Proc16 platform_16_procs[] = {
     S32_D565_Opaque_SSE2,               // S32_D565_Opaque
-    NULL,                               // S32_D565_Blend
+    nullptr,                               // S32_D565_Blend
     S32A_D565_Opaque_SSE2,              // S32A_D565_Opaque
-    NULL,                               // S32A_D565_Blend
+    nullptr,                               // S32A_D565_Blend
     S32_D565_Opaque_Dither_SSE2,        // S32_D565_Opaque_Dither
-    NULL,                               // S32_D565_Blend_Dither
+    nullptr,                               // S32_D565_Blend_Dither
     S32A_D565_Opaque_Dither_SSE2,       // S32A_D565_Opaque_Dither
-    NULL,                               // S32A_D565_Blend_Dither
+    nullptr,                               // S32A_D565_Blend_Dither
 };
 
 SkBlitRow::Proc16 SkBlitRow::PlatformFactory565(unsigned flags) {
     if (supports_simd(SK_CPU_SSE_LEVEL_SSE2)) {
         return platform_16_procs[flags];
     } else {
-        return NULL;
+        return nullptr;
     }
 }
 
 static const SkBlitRow::ColorProc16 platform_565_colorprocs_SSE2[] = {
     Color32A_D565_SSE2,                 // Color32A_D565,
-    NULL,                               // Color32A_D565_Dither
+    nullptr,                               // Color32A_D565_Dither
 };
 
 SkBlitRow::ColorProc16 SkBlitRow::PlatformColorFactory565(unsigned flags) {
@@ -227,19 +205,19 @@ SkBlitRow::ColorProc16 SkBlitRow::PlatformColorFactory565(unsigned flags) {
     if (supports_simd(SK_CPU_SSE_LEVEL_SSE2)) {
         return platform_565_colorprocs_SSE2[flags];
     } else {
-        return NULL;
+        return nullptr;
     }
 }
 
 static const SkBlitRow::Proc32 platform_32_procs_SSE2[] = {
-    NULL,                               // S32_Opaque,
+    nullptr,                               // S32_Opaque,
     S32_Blend_BlitRow32_SSE2,           // S32_Blend,
     S32A_Opaque_BlitRow32_SSE2,         // S32A_Opaque
     S32A_Blend_BlitRow32_SSE2,          // S32A_Blend,
 };
 
 static const SkBlitRow::Proc32 platform_32_procs_SSE4[] = {
-    NULL,                               // S32_Opaque,
+    nullptr,                               // S32_Opaque,
     S32_Blend_BlitRow32_SSE2,           // S32_Blend,
     S32A_Opaque_BlitRow32_SSE4,         // S32A_Opaque
     S32A_Blend_BlitRow32_SSE2,          // S32A_Blend,
@@ -252,35 +230,11 @@ SkBlitRow::Proc32 SkBlitRow::PlatformProcs32(unsigned flags) {
     if (supports_simd(SK_CPU_SSE_LEVEL_SSE2)) {
         return platform_32_procs_SSE2[flags];
     } else {
-        return NULL;
+        return nullptr;
     }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-SkBlitMask::ColorProc SkBlitMask::PlatformColorProcs(SkColorType dstCT,
-                                                     SkMask::Format maskFormat,
-                                                     SkColor color) {
-    if (SkMask::kA8_Format != maskFormat) {
-        return NULL;
-    }
-
-    ColorProc proc = NULL;
-    if (supports_simd(SK_CPU_SSE_LEVEL_SSE2)) {
-        switch (dstCT) {
-            case kN32_SkColorType:
-                // The SSE2 version is not (yet) faster for black, so we check
-                // for that.
-                if (SK_ColorBLACK != color) {
-                    proc = SkARGB32_A8_BlitMask_SSE2;
-                }
-                break;
-            default:
-                break;
-        }
-    }
-    return proc;
-}
 
 SkBlitMask::BlitLCD16RowProc SkBlitMask::PlatformBlitRowProcs16(bool isOpaque) {
     if (supports_simd(SK_CPU_SSE_LEVEL_SSE2)) {
@@ -290,63 +244,11 @@ SkBlitMask::BlitLCD16RowProc SkBlitMask::PlatformBlitRowProcs16(bool isOpaque) {
             return SkBlitLCD16Row_SSE2;
         }
     } else {
-        return NULL;
+        return nullptr;
     }
 
 }
 
 SkBlitMask::RowProc SkBlitMask::PlatformRowProcs(SkColorType, SkMask::Format, RowFlags) {
-    return NULL;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-SkMemset16Proc SkMemset16GetPlatformProc() {
-    if (supports_simd(SK_CPU_SSE_LEVEL_SSE2)) {
-        return sk_memset16_SSE2;
-    } else {
-        return NULL;
-    }
-}
-
-SkMemset32Proc SkMemset32GetPlatformProc() {
-    if (supports_simd(SK_CPU_SSE_LEVEL_SSE2)) {
-        return sk_memset32_SSE2;
-    } else {
-        return NULL;
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-SkMorphologyImageFilter::Proc SkMorphologyGetPlatformProc(SkMorphologyProcType type) {
-    if (!supports_simd(SK_CPU_SSE_LEVEL_SSE2)) {
-        return NULL;
-    }
-    switch (type) {
-        case kDilateX_SkMorphologyProcType:
-            return SkDilateX_SSE2;
-        case kDilateY_SkMorphologyProcType:
-            return SkDilateY_SSE2;
-        case kErodeX_SkMorphologyProcType:
-            return SkErodeX_SSE2;
-        case kErodeY_SkMorphologyProcType:
-            return SkErodeY_SSE2;
-        default:
-            return NULL;
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-bool SkBoxBlurGetPlatformProcs(SkBoxBlurProc* boxBlurX,
-                               SkBoxBlurProc* boxBlurXY,
-                               SkBoxBlurProc* boxBlurYX) {
-    if (supports_simd(SK_CPU_SSE_LEVEL_SSE41)) {
-        return SkBoxBlurGetPlatformProcs_SSE4(boxBlurX, boxBlurXY, boxBlurYX);
-    }
-    else if (supports_simd(SK_CPU_SSE_LEVEL_SSE2)) {
-        return SkBoxBlurGetPlatformProcs_SSE2(boxBlurX, boxBlurXY, boxBlurYX);
-    }
-    return false;
+    return nullptr;
 }
