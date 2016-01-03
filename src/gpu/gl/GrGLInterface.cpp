@@ -89,14 +89,8 @@ GrGLInterface* GrGLInterface::NewClone(const GrGLInterface* interface) {
     return clone;
 }
 
-#ifdef SK_DEBUG
-    static int kIsDebug = 1;
-#else
-    static int kIsDebug = 0;
-#endif
-
 #define RETURN_FALSE_INTERFACE                                                                   \
-    if (kIsDebug) { SkDebugf("%s:%d GrGLInterface::validate() failed.\n", __FILE__, __LINE__); } \
+    printf("%s:%d GrGLInterface::validate() failed.\n", __FILE__, __LINE__); \
     return false;
 
 bool GrGLInterface::validate() const {
@@ -256,19 +250,6 @@ bool GrGLInterface::validate() const {
                 nullptr == fFunctions.fGetQueryiv ||
                 nullptr == fFunctions.fGetQueryObjectiv ||
                 nullptr == fFunctions.fGetQueryObjectuiv) {
-                RETURN_FALSE_INTERFACE
-            }
-        }
-        if (glVer >= GR_GL_VER(3,3) ||
-            fExtensions.has("GL_ARB_timer_query") ||
-            fExtensions.has("GL_EXT_timer_query")) {
-            if (nullptr == fFunctions.fGetQueryObjecti64v ||
-                nullptr == fFunctions.fGetQueryObjectui64v) {
-                RETURN_FALSE_INTERFACE
-            }
-        }
-        if (glVer >= GR_GL_VER(3,3) || fExtensions.has("GL_ARB_timer_query")) {
-            if (nullptr == fFunctions.fQueryCounter) {
                 RETURN_FALSE_INTERFACE
             }
         }
@@ -476,14 +457,6 @@ bool GrGLInterface::validate() const {
         if (nullptr == fFunctions.fMapBufferRange ||
             nullptr == fFunctions.fFlushMappedBufferRange) {
             RETURN_FALSE_INTERFACE;
-        }
-    }
-
-    if ((kGL_GrGLStandard == fStandard &&
-         (glVer >= GR_GL_VER(4,3) || fExtensions.has("GL_ARB_program_interface_query"))) ||
-        (kGLES_GrGLStandard == fStandard && glVer >= GR_GL_VER(3,1))) {
-        if (nullptr == fFunctions.fGetProgramResourceLocation) {
-            RETURN_FALSE_INTERFACE
         }
     }
 
