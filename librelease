@@ -1,0 +1,11 @@
+mkdir ~/skialib
+cp out/Release/*.a ~/skialib
+cp out/Release/obj/third_party/etc1/libetc1.etc1.o ~/skialib
+cp out/Release/obj/third_party/ktx/libSkKTX.ktx.o ~/skialib
+cd ~/skialib
+ls -1 | tr '\n' '\0' | xargs -0 -n1 ar -x
+rm *.a
+ar -qc libskia.a *.o
+mv libskia.a ~/sciter/skia/lib/linux
+cd ~/skia
+rm -r ~/skialib
