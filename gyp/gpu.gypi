@@ -426,6 +426,7 @@
       '<(skia_src_path)/gpu/gl/win/GrGLCreateNativeInterface_win.cpp',
       '<(skia_src_path)/gpu/gl/glx/GrGLCreateNativeInterface_glx.cpp',
       '<(skia_src_path)/gpu/gl/egl/GrGLCreateNativeInterface_egl.cpp',
+      '<(skia_src_path)/gpu/gl/linux/GrGLCreateNativeInterface_linux.cpp',
       '<(skia_src_path)/gpu/gl/iOS/GrGLCreateNativeInterface_iOS.cpp',
       '<(skia_src_path)/gpu/gl/android/GrGLCreateNativeInterface_android.cpp',
 

@@ -14,7 +14,7 @@
         'sources/': [ ['exclude', '_mac.(h|cpp|m|mm)$'],
         ],
       }],
-      ['skia_os != "linux" and skia_os != "chromeos"', {
+      ['skia_os == "linux"', {
         'sources/': [ ['exclude', '_glx.(h|cpp)$'],
         ],
       }],
@@ -35,7 +35,7 @@
         ],
       }],
       ['skia_egl == 1', {
-        'sources/': [ ['exclude', '_glx.(h|cpp)$'],
+        'sources/': [ ['exclude', '_glx.(h|cpp)$'], ['exclude', '_linux.(h|cpp)$']
         ],
       }],
       # nullify the targets in this gyp file if skia_gpu is 0
@@ -103,7 +103,6 @@
         '<@(skgpu_sources)',
         '<@(skgpu_native_gl_sources)',
         '<@(skgpu_angle_gl_sources)',
-        '<@(skgpu_command_buffer_gl_sources)',
         '<@(skgpu_mesa_gl_sources)',
         '<@(skgpu_debug_gl_sources)',
         '<@(skgpu_null_gl_sources)',
@@ -113,10 +112,7 @@
         [ 'skia_gpu_extra_dependency_path', {
           'dependencies' : [
               '<(skia_gpu_extra_dependency_path):*',
-          ],
-          'export_dependent_settings': [
-            '<(skia_gpu_extra_dependency_path):*',
-          ],
+          ]
         }],
         [ 'skia_chrome_utils', {
           'sources': [
@@ -145,8 +141,6 @@
           'link_settings': {
             'libraries': [
               '-lGL',
-              '-lGLU',
-              '-lX11',
             ],
           },
         }],
@@ -210,12 +204,6 @@
         }, { # not skia_angle
           'sources!': [
             '<@(skgpu_angle_gl_sources)',
-          ],
-        }],
-        [ 'skia_command_buffer', {
-        }, { # not skia_command_buffer
-          'sources!': [
-            '<@(skgpu_command_buffer_gl_sources)',
           ],
         }],
         [ 'skia_os == "android"', {
