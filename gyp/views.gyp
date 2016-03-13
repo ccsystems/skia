@@ -88,6 +88,10 @@
         '../src/views/rpi/SkOSWindow_RPI.cpp',
         '../src/views/rpi/skia_rpi.cpp',
 
+        # RPI
+        '../src/views/odroid/SkOSWindow_ODROID.cpp',
+        '../src/views/odroid/skia_odroid.cpp',
+
         # Windows
         '../src/views/win/SkOSWindow_win.cpp',
         '../src/views/win/skia_win.cpp',
@@ -130,8 +134,19 @@
           },
         },{
           'sources!': [
-            '../src/views/unix/SkOSWindow_RPI.cpp',
-            '../src/views/unix/skia_rpi.cpp',
+            '../src/views/rpi/SkOSWindow_RPI.cpp',
+            '../src/views/rpi/skia_rpi.cpp',
+          ],
+        }],
+        [ 'skia_os in ["odroid"]', {
+          'link_settings': {
+            'libraries': [
+            ],
+          },
+        },{
+          'sources!': [
+            '../src/views/odroid/SkOSWindow_ODROID.cpp',
+            '../src/views/odroid/skia_odroid.cpp',
           ],
         }],
         [ 'skia_os in ["linux", "freebsd", "openbsd", "solaris", "chromeos"] and skia_use_sdl == 0', {

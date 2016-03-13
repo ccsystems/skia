@@ -60,7 +60,7 @@
             '../src/utils/mac/SkCreateCGImageRef.cpp',
           ],
         }],
-        [ 'skia_os in ["linux", "freebsd", "openbsd", "solaris", "chromeos", "rpi"]', {
+        [ 'skia_os in ["linux", "freebsd", "openbsd", "solaris", "chromeos", "rpi", "odroid"]', {
         },{ #else if 'skia_os not in ["linux", "freebsd", "openbsd", "solaris", "chromeos"]'
           'include_dirs!': [
             '../include/utils/unix',

@@ -59,7 +59,7 @@
           ],
           'dependencies': ['iOSShell.gyp:iOSShell' ],
         }],
-        ['skia_os == "mac" or skia_os == "linux" or skia_os == "rpi"', {
+        ['skia_os == "mac" or skia_os == "linux" or skia_os == "rpi" or skia_os == "odroid"', {
           'dependencies': [ 'nanomsg.gyp:*' ],
         }],
         [ 'skia_skip_gui',

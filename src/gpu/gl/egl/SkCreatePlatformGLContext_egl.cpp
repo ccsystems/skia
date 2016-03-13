@@ -273,7 +273,7 @@ void EGLGLContext::onPlatformSwapBuffers() const {
 }
 
 GrGLFuncPtr EGLGLContext::onPlatformGetProcAddress(const char* procName) const {
-#ifdef SK_BUILD_FOR_RPI
+#if defined(SK_BUILD_FOR_RPI) || defined(SK_BUILD_FOR_ODROID)
     if(strcmp(procName, "glGetString") == 0) return (GrGLFuncPtr)glGetString;
     if(strcmp(procName, "glGetIntegerv") == 0) return (GrGLFuncPtr)glGetIntegerv;
     if(strcmp(procName, "glActiveTexture") == 0) return (GrGLFuncPtr)glActiveTexture;

@@ -195,7 +195,7 @@
         '-mfpu=vfpv3-d16',
       ],
       'conditions': [
-        [ 'not skia_android_framework', {
+        [ 'not skia_android_framework and arm_version<=7', {
           'cflags': [
             '-mfpu=neon',
             '-fomit-frame-pointer',

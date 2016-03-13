@@ -89,6 +89,16 @@
         }, {
           'os_posix%': 1,
         }],
+        [ 'skia_os == "odroid"', {
+          'skia_egl%': 1,
+          'skia_arch_type%': 'arm64',
+          'arm_version%': 8,
+          'arm_neon%': 1,
+          'skia_arch_width%': 64,
+          'skia_warnings_as_errors%': 0,
+          'skia_freetype_static%': 1,
+        }, {
+		}],
         [ 'skia_os == "rpi"', {
           'skia_egl%': 1,
           'skia_arch_type%': 'arm',

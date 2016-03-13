@@ -75,7 +75,7 @@
         ['exclude', 'SkFontMgr_.+_factory\\.cpp$'],
       ],
       'conditions': [
-        [ 'skia_os in ["rpi", "linux", "freebsd", "openbsd", "solaris", "chromeos", "android"]', {
+        [ 'skia_os in ["rpi", "odroid", "linux", "freebsd", "openbsd", "solaris", "chromeos", "android"]', {
           'sources': [
             '../src/ports/SkFontHost_FreeType.cpp',
             '../src/ports/SkFontHost_FreeType_common.cpp',

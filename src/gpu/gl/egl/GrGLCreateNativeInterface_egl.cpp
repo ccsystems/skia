@@ -13,7 +13,7 @@
 #include <GLES2/gl2.h>
 
 static GrGLFuncPtr egl_get_gl_proc(void* ctx, const char name[]) {
-#ifdef SK_BUILD_FOR_RPI
+#if defined(SK_BUILD_FOR_RPI) || defined(SK_BUILD_FOR_ODROID)
     if(strcmp(name, "glGetString") == 0) return (GrGLFuncPtr)glGetString;
     if(strcmp(name, "glGetIntegerv") == 0) return (GrGLFuncPtr)glGetIntegerv;
     if(strcmp(name, "glActiveTexture") == 0) return (GrGLFuncPtr)glActiveTexture;

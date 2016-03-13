@@ -208,7 +208,7 @@
     ],
 
     # The following section is common to linux + derivatives and android
-    [ 'skia_os in ["rpi", "linux", "freebsd", "openbsd", "solaris", "chromeos", "android"]',
+    [ 'skia_os in ["rpi", "odroid", "linux", "freebsd", "openbsd", "solaris", "chromeos", "android"]',
       {
         'cflags': [
           '-g',
@@ -275,7 +275,7 @@
               '-fno-omit-frame-pointer',
             ],
           }],
-          [ 'skia_arch_type == "arm" and arm_version >= 7', {
+          [ 'skia_arch_type == "arm" and arm_version == 7', {
             'cflags': [
               '-march=armv7-a',
               '-mthumb',
@@ -402,6 +402,13 @@
       {
         'defines': [
           'SK_BUILD_FOR_RPI',
+        ],
+    }],
+
+    [ 'skia_os in ["odroid"]',
+      {
+        'defines': [
+          'SK_BUILD_FOR_ODROID',
         ],
     }],
 
