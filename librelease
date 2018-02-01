@@ -1,11 +1,27 @@
-mkdir ~/skialib
-cp out/Release/*.a ~/skialib
-cp out/Release/obj/third_party/etc1/libetc1.etc1.o ~/skialib
-cp out/Release/obj/third_party/ktx/libSkKTX.ktx.o ~/skialib
-cd ~/skialib
+###################################################################################
+# build android:
+#
+# BUILDTYPE=Release ./platform_tools/android/bin/android_ninja -d x86
+# BUILDTYPE=Release ./platform_tools/android/bin/android_ninja -d x64
+#
+# static lib form examples:
+#
+# ./librelease out/config/android-x86/Release/
+#  mv libskia.a ~/dev/sciter/skia/android/jni/skia/x86/
+#
+# ./librelease out/config/android-x64/Release/
+#  mv libskia.a ~/dev/sciter/skia/android/jni/skia/x86_64/
+###################################################################################
+
+mkdir skialib
+cp $1/*.a skialib
+cp $1/obj/third_party/etc1/libetc1.etc1.o skialib
+cp $1/obj/third_party/ktx/libSkKTX.ktx.o skialib
+cp $1/obj/platform_tools/android/third_party/externals/expat/lib/*.o skialib
+cd skialib
 ls -1 | tr '\n' '\0' | xargs -0 -n1 ar -x
 rm *.a
 ar -qc libskia.a *.o
-mv libskia.a ~/sciter/skia/lib/linux
-cd ~/skia
-rm -r ~/skialib
+mv libskia.a ..
+cd ..
+rm -r skialib
